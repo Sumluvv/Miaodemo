@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiaoDemo AI Workbench</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Icons & Prism -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css" rel="stylesheet" />
+    
+    <!-- Logic Libraries -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+        
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        [x-cloak] { display: none !important; }
+        
+        /* Prism overrides for minimal look */
+        pre[class*="language-"] { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 0.75rem; text-shadow: none; }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen overflow-hidden flex flex-col md:flex-row" x-data="app()">
+
+    <!-- Left Sidebar (Glassmorphism) -->
+    <aside class="hidden md:flex flex-col w-[260px] border-r border-gray-200 bg-white/80 backdrop-blur-md z-20 h-full">
+        <div class="p-6 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold">M</div>
+            <h1 class="font-semibold text-lg tracking-tight">MiaoDemo</h1>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <div class="text-xs font-medium text-gray-400 px-3 mb-2 uppercase tracking-wider">Project</div>
+            <button @click="resetProject()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> New Project
+            </button>
+            <button class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-900 bg-gray-100 rounded-lg font-medium">
+                <i data-lucide="layout" class="w-4 h-4"></i> Workbench
+            </button>
+            <a href="view.html" target="_blank" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                <i data-lucide="globe" class="w-4 h-4"></i> Community
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-gray-100">
+            <button @click="handleDeploy()" class="w-full py-2.5 px-4 bg-black text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-shadow shadow-sm flex items-center justify-center gap-2">
+                <i data-lucide="rocket" class="w-4 h-4"></i> Deploy
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden">
+        <!-- Top Mobile Header -->
+        <div class="md:hidden h-14 border-b border-gray-200 bg-white/90 backdrop-blur flex items-center justify-between px-4 z-30">
+            <div class="font-semibold">MiaoDemo</div>
+            <button @click="handleDeploy()" class="text-sm bg-black text-white px-3 py-1.5 rounded-lg">Deploy</button>
+        </div>
+
+        <!-- Toolbar / Tabs -->
+        <div class="h-14 border-b border-gray-200 bg-white/50 backdrop-blur-sm flex items-center justify-between px-6">
+            <div class="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+                <template x-for="tab in ['preview', 'code', 'assets']">
+                    <button 
+                        @click="activeTab = tab"
+                        :class="activeTab === tab ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize"
+                        x-text="tab">
+                    </button>
+                </template>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button @click="undo()" :disabled="historyIndex <= 0" class="p-2 text-gray-500 hover:text-black disabled:opacity-30">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i>
+                </button>
+                <button @click="redo()" :disabled="historyIndex >= history.length - 1" class="p-2 text-gray-500 hover:text-black disabled:opacity-30">
+                    <i data-lucide="redo-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 relative bg-gray-50/50 overflow-hidden">
+            
+            <!-- PREVIEW TAB -->
+            <div x-show="activeTab === 'preview'" class="absolute inset-0 p-4 md:p-8 flex justify-center">
+                <div class="w-full h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
+                    <iframe :srcdoc="combinedCode" class="w-full h-full" sandbox="allow-scripts allow-modals"></iframe>
+                    <div x-show="!code.html && !code.css && !code.js" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                        <i data-lucide="box" class="w-12 h-12 mb-2 opacity-20"></i>
+                        <p>Empty Canvas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CODE TAB -->
+            <div x-show="activeTab === 'code'" class="absolute inset-0 flex flex-col">
+                <div class="flex border-b border-gray-200 bg-white">
+                    <template x-for="sub in ['html', 'css', 'js']">
+                        <button 
+                            @click="codeTab = sub" 
+                            :class="codeTab === sub ? 'border-b-2 border-black text-black' : 'text-gray-500'"
+                            class="px-6 py-3 text-xs font-mono uppercase tracking-wide hover:bg-gray-50"
+                            x-text="sub">
+                        </button>
+                    </template>
+                </div>
+                <div class="flex-1 overflow-auto bg-gray-50 p-4 relative">
+                    <textarea 
+                        x-model="code[codeTab]" 
+                        @input="updateHistory()"
+                        class="w-full h-full p-4 font-mono text-sm bg-transparent border-none focus:ring-0 resize-none outline-none text-gray-700 leading-relaxed"
+                        spellcheck="false"
+                        placeholder="// Type your code here..."></textarea>
+                </div>
+            </div>
+
+            <!-- ASSETS TAB -->
+            <div x-show="activeTab === 'assets'" class="absolute inset-0 p-8 overflow-auto">
+                <div class="max-w-2xl mx-auto">
+                    <h3 class="text-lg font-semibold mb-4">Detected Assets</h3>
+                    <div class="space-y-4">
+                        <template x-for="(img, index) in scanImages()" :key="index">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                                <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
+                                    <img :src="img.src" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-gray-500 font-mono truncate" x-text="img.src"></p>
+                                    <p class="text-xs text-gray-400 mt-1">Found in HTML</p>
+                                </div>
+                                <label class="cursor-pointer px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-gray-700">
+                                    Replace
+                                    <input type="file" class="hidden" accept="image/*" @change="uploadAsset($event, img.src)">
+                                </label>
+                            </div>
+                        </template>
+                        <div x-show="scanImages().length === 0" class="text-center py-12 text-gray-400">
+                            No &lt;img&gt; tags found in your code.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Right Chat Sidebar -->
+    <aside class="w-full md:w-[360px] flex flex-col border-l border-gray-200 bg-white z-20 absolute md:relative h-full transition-transform duration-300"
+           :class="showChatMobile ? 'translate-y-0' : 'translate-y-full md:translate-y-0'">
+        
+        <!-- Chat Header -->
+        <div class="h-14 border-b border-gray-100 flex items-center justify-between px-4">
+            <span class="font-medium text-sm">AI Assistant</span>
+            <button class="md:hidden p-2" @click="showChatMobile = false"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <!-- Messages Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6" id="chat-container">
+            <template x-for="msg in messages" :key="msg.id">
+                <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                    <div :class="msg.role === 'user' 
+                        ? 'bg-black text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm max-w-[85%]' 
+                        : 'text-gray-800 text-sm max-w-[95%] leading-relaxed'">
+                        <div x-html="renderMarkdown(msg.content)"></div>
+                    </div>
+                </div>
+            </template>
+            
+            <!-- Loading Indicator -->
+            <div x-show="isLoading" class="flex justify-start items-center gap-2 pl-2">
+                <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div>
+                <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></div>
+                <div class="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-100 bg-white">
+            <div class="relative">
+                <textarea 
+                    x-model="chatInput" 
+                    @keydown.enter.prevent="sendMessage()"
+                    placeholder="Describe your UI idea..." 
+                    class="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-300 focus:bg-white transition-all resize-none shadow-sm"
+                    rows="1"></textarea>
+                <button 
+                    @click="sendMessage()"
+                    :disabled="isLoading || !chatInput.trim()"
+                    class="absolute right-2 top-2 p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50 transition-colors">
+                    <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 text-center mt-2">AI can make mistakes. Review generated code.</p>
+        </div>
+    </aside>
+
+    <!-- Mobile Nav (Bottom) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 backdrop-blur border-t border-gray-200 flex items-center justify-around z-50">
+        <button @click="activeTab = 'preview'; showChatMobile = false" :class="activeTab === 'preview' && !showChatMobile ? 'text-black' : 'text-gray-400'" class="flex flex-col items-center gap-1">
+            <i data-lucide="eye" class="w-5 h-5"></i>
+            <span class="text-[10px]">Preview</span>
+        </button>
+        <button @click="activeTab = 'code'; showChatMobile = false" :class="activeTab === 'code' && !showChatMobile ? 'text-black' : 'text-gray-400'" class="flex flex-col items-center gap-1">
+            <i data-lucide="code-2" class="w-5 h-5"></i>
+            <span class="text-[10px]">Code</span>
+        </button>
+        <button @click="showChatMobile = true" :class="showChatMobile ? 'text-black' : 'text-gray-400'" class="flex flex-col items-center gap-1">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+            <span class="text-[10px]">AI Chat</span>
+        </button>
+    </nav>
+
+    <!-- Success / Auth Modal -->
+    <div x-cloak x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showModal = false"></div>
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative z-10 animate-in zoom-in-95 duration-200">
+            
+            <!-- Auth View -->
+            <div x-show="modalMode === 'auth'">
+                <h3 class="text-xl font-bold mb-2">Login Required</h3>
+                <p class="text-sm text-gray-500 mb-6">Please login to PocketBase to save your project.</p>
+                <form @submit.prevent="login()" class="space-y-4">
+                    <input type="email" x-model="authForm.email" placeholder="Email" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400">
+                    <input type="password" x-model="authForm.password" placeholder="Password" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-gray-400">
+                    <button type="submit" class="w-full py-2.5 bg-black text-white rounded-xl text-sm font-medium">Sign In / Register</button>
+                </form>
+                <div x-show="authError" class="mt-4 p-3 bg-red-50 text-red-600 text-xs rounded-lg" x-text="authError"></div>
+            </div>
+
+            <!-- Success View -->
+            <div x-show="modalMode === 'success'" class="text-center">
+                <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Deployed Successfully!</h3>
+                <p class="text-sm text-gray-500 mb-6">Your project is live and ready to share.</p>
+                
+                <div class="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
+                    <div id="qrcode" class="flex justify-center mb-4"></div>
+                    <a :href="deployUrl" target="_blank" class="text-xs text-blue-600 hover:underline break-all" x-text="deployUrl"></a>
+                </div>
+                
+                <button @click="showModal = false" class="w-full py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-200">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div x-cloak x-show="toast.show" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         :class="toast.type === 'error' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-900 text-white border-gray-800'"
+         class="fixed top-6 right-6 px-4 py-3 rounded-xl shadow-lg border text-sm flex items-center gap-2 z-50">
+        <i :data-lucide="toast.type === 'error' ? 'alert-circle' : 'check-circle'" class="w-4 h-4"></i>
+        <span x-text="toast.message"></span>
+    </div>
+
+    <script>
+        const CONFIG = {
+            DIFY_API_BASE: "https://dify-api.miaodemo.com/v1",
+            DIFY_API_KEY: "app-udMJo0WIpBWBAp4ceXVV7kNE",
+            POCKETBASE_URL: "https://db.miaodemo.com"
+        };
+
+        const pb = new PocketBase(CONFIG.POCKETBASE_URL);
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('app', () => ({
+                activeTab: 'preview',
+                codeTab: 'html',
+                showChatMobile: false,
+                chatInput: '',
+                messages: [{ role: 'assistant', content: 'Hi! I can help you build UI components. Try saying "Create a minimalist login card".', id: Date.now() }],
+                isLoading: false,
+                code: { html: '', css: '', js: '' },
+                history: [], // undo stack
+                historyIndex: -1,
+                
+                // Modal & Toast
+                showModal: false,
+                modalMode: 'auth', // 'auth' | 'success'
+                authForm: { email: '', password: '' },
+                authError: '',
+                deployUrl: '',
+                toast: { show: false, message: '', type: 'info' },
+
+                async init() {
+                    lucide.createIcons();
+                    
+                    // Initial history push
+                    this.pushHistory();
+
+                    // Check Remix
+                    const params = new URLSearchParams(window.location.search);
+                    const remixId = params.get('remix_id');
+                    if (remixId) {
+                        this.showToast('Loading project for remix...', 'info');
+                        try {
+                            const record = await pb.collection('projects').getOne(remixId);
+                            this.code.html = record.code_html || '';
+                            this.code.css = record.code_css || '';
+                            this.code.js = record.code_js || '';
+                            this.pushHistory();
+                            this.showToast(`Remixing "${record.title || 'Project'}"`, 'success');
+                        } catch (e) {
+                            this.showToast('Failed to load project', 'error');
+                        }
+                    }
+                },
+
+                // Computed equivalent for Iframe source
+                get combinedCode() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <style>${this.code.css}<\/style>
+                        </head>
+                        <body class="bg-transparent">
+                            ${this.code.html}
+                            <script>${this.code.js}<\/script>
+                        </body>
+                        </html>
+                    `;
+                },
+
+                // --- Chat & Dify Logic ---
+                async sendMessage() {
+                    if (!this.chatInput.trim()) return;
+                    
+                    const userMsg = { role: 'user', content: this.chatInput, id: Date.now() };
+                    this.messages.push(userMsg);
+                    const query = this.chatInput;
+                    this.chatInput = '';
+                    this.isLoading = true;
+                    
+                    // Auto scroll
+                    this.$nextTick(() => {
+                        const container = document.getElementById('chat-container');
+                        container.scrollTop = container.scrollHeight;
+                    });
+
+                    try {
+                        const response = await fetch(`${CONFIG.DIFY_API_BASE}/chat-messages`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${CONFIG.DIFY_API_KEY}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                inputs: {},
+                                query: query,
+                                response_mode: "blocking",
+                                user: pb.authStore.model ? pb.authStore.model.id : "guest-user",
+                                conversation_id: ""
+                            })
+                        });
+
+                        const data = await response.json();
+                        const answer = data.answer;
+                        
+                        this.messages.push({ role: 'assistant', content: answer, id: Date.now() });
+                        this.parseAndApplyCode(answer);
+                        
+                    } catch (error) {
+                        console.error(error);
+                        this.showToast('Failed to contact AI', 'error');
+                        this.messages.push({ role: 'assistant', content: 'Sorry, I encountered an error connecting to the server.', id: Date.now() });
+                    } finally {
+                        this.isLoading = false;
+                        this.$nextTick(() => {
+                            const container = document.getElementById('chat-container');
+                            container.scrollTop = container.scrollHeight;
+                        });
+                    }
+                },
+
+                renderMarkdown(text) {
+                    return marked.parse(text);
+                },
+
+                parseAndApplyCode(text) {
+                    // Simple Regex extractor for markdown code blocks
+                    const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
+                    const cssMatch = text.match(/```css\n([\s\S]*?)```/);
+                    const jsMatch = text.match(/```javascript\n([\s\S]*?)```/) || text.match(/```js\n([\s\S]*?)```/);
+
+                    let changed = false;
+                    if (htmlMatch) { this.code.html = htmlMatch[1]; changed = true; }
+                    if (cssMatch) { this.code.css = cssMatch[1]; changed = true; }
+                    if (jsMatch) { this.code.js = jsMatch[1]; changed = true; }
+
+                    if (changed) {
+                        this.pushHistory();
+                        this.showToast('Code updated!', 'success');
+                        // Switch to preview if on mobile to see result
+                        if (window.innerWidth < 768) this.activeTab = 'preview';
+                    }
+                },
+
+                // --- History (Undo/Redo) ---
+                updateHistory() {
+                    // Debounce could be added here
+                    this.pushHistory();
+                },
+                
+                pushHistory() {
+                    // Remove future history if we were in middle
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.history = this.history.slice(0, this.historyIndex + 1);
+                    }
+                    this.history.push(JSON.parse(JSON.stringify(this.code)));
+                    this.historyIndex++;
+                },
+
+                undo() {
+                    if (this.historyIndex > 0) {
+                        this.historyIndex--;
+                        this.code = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+                    }
+                },
+
+                redo() {
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.historyIndex++;
+                        this.code = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+                    }
+                },
+
+                // --- Assets ---
+                scanImages() {
+                    const regex = /<img[^>]+src="([^">]+)"/g;
+                    const matches = [];
+                    let match;
+                    while ((match = regex.exec(this.code.html)) !== null) {
+                        matches.push({ src: match[1] });
+                    }
+                    return matches;
+                },
+
+                async uploadAsset(event, oldSrc) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    if (!pb.authStore.isValid) {
+                        this.modalMode = 'auth';
+                        this.showModal = true;
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    // Just a dummy collection for assets if 'projects' allows it, 
+                    // ideally we'd have an 'assets' collection or store in project.
+                    // For this demo, we'll try to create a 'project' entry just to get a file URL 
+                    // OR assume a 'files' collection exists. 
+                    // NOTE: PocketBase requires creating a record to upload a file.
+                    
+                    this.showToast('Uploading...', 'info');
+                    
+                    try {
+                        // Create a temp record to hold the file
+                        const record = await pb.collection('projects').create({
+                            title: 'Asset Upload ' + Date.now(),
+                            author_id: pb.authStore.model.id,
+                            image: file // Assuming 'image' field exists in 'projects'
+                        });
+                        
+                        // Construct URL: /api/files/COLLECTION_ID/RECORD_ID/FILENAME
+                        const fileUrl = `${CONFIG.POCKETBASE_URL}/api/files/${record.collectionId}/${record.id}/${record.image}`;
+                        
+                        // Replace in code
+                        this.code.html = this.code.html.replace(oldSrc, fileUrl);
+                        this.pushHistory();
+                        this.showToast('Image replaced successfully', 'success');
+                    } catch (e) {
+                        console.error(e);
+                        this.showToast('Upload failed: ' + e.message, 'error');
+                    }
+                },
+
+                // --- Deployment ---
+                handleDeploy() {
+                    if (!pb.authStore.isValid) {
+                        this.modalMode = 'auth';
+                        this.showModal = true;
+                    } else {
+                        this.saveProject();
+                    }
+                },
+
+                async login() {
+                    try {
+                        this.authError = '';
+                        await pb.collection('users').authWithPassword(this.authForm.email, this.authForm.password);
+                        this.showModal = false;
+                        this.showToast('Logged in successfully', 'success');
+                        this.saveProject();
+                    } catch (e) {
+                        // Attempt registration if login fails (Simplified flow)
+                        try {
+                            await pb.collection('users').create({
+                                email: this.authForm.email,
+                                password: this.authForm.password,
+                                passwordConfirm: this.authForm.password
+                            });
+                            await pb.collection('users').authWithPassword(this.authForm.email, this.authForm.password);
+                            this.showModal = false;
+                            this.showToast('Account created & Logged in', 'success');
+                            this.saveProject();
+                        } catch (regError) {
+                            this.authError = "Login/Register failed. Check email/password.";
+                        }
+                    }
+                },
+
+                async saveProject() {
+                    this.showToast('Deploying...', 'info');
+                    try {
+                        const data = {
+                            title: "Untitled Project " + new Date().toLocaleTimeString(),
+                            code_html: this.code.html,
+                            code_css: this.code.css,
+                            code_js: this.code.js,
+                            author_id: pb.authStore.model.id,
+                            prompt: this.messages.filter(m => m.role === 'user').pop()?.content || ''
+                        };
+
+                        const record = await pb.collection('projects').create(data);
+                        
+                        // Show Success
+                        this.modalMode = 'success';
+                        this.deployUrl = `${window.location.origin}/view.html?id=${record.id}`;
+                        this.showModal = true;
+                        
+                        // Generate QR
+                        setTimeout(() => {
+                            document.getElementById('qrcode').innerHTML = '';
+                            new QRCode(document.getElementById("qrcode"), {
+                                text: this.deployUrl,
+                                width: 128,
+                                height: 128
+                            });
+                        }, 100);
+
+                    } catch (e) {
+                        this.showToast('Deployment failed: ' + e.message, 'error');
+                    }
+                },
+
+                resetProject() {
+                    if(confirm('Clear current workspace?')) {
+                        this.code = { html: '', css: '', js: '' };
+                        this.pushHistory();
+                        window.history.pushState({}, document.title, window.location.pathname);
+                    }
+                },
+
+                showToast(msg, type = 'info') {
+                    this.toast.message = msg;
+                    this.toast.type = type;
+                    this.toast.show = true;
+                    setTimeout(() => this.toast.show = false, 3000);
+                }
+            }))
+        })
+    </script>
+</body>
+</html>
+
+

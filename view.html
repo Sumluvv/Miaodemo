@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiaoDemo Community</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Icons & Logic -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        [x-cloak] { display: none !important; }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top: 3px solid #000;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 min-h-screen" x-data="viewer()">
+
+    <!-- MODE: LIST VIEW (Square) -->
+    <div x-show="!currentId" class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-12">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-bold text-lg">M</div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">MiaoDemo Plaza</h1>
+                    <p class="text-sm text-gray-500">Discover community creations</p>
+                </div>
+            </div>
+            <a href="index.html" class="px-5 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:scale-105 transition-transform shadow-lg">
+                Create New
+            </a>
+        </header>
+
+        <!-- Loading State -->
+        <div x-show="isLoading" class="flex justify-center py-20">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" x-show="!isLoading">
+            <template x-for="project in projects" :key="project.id">
+                <a :href="'?id=' + project.id" class="group block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-[300px]">
+                    <!-- Mini Preview (Iframe scaled down or simple visual) -->
+                    <div class="flex-1 bg-gray-100 relative overflow-hidden">
+                        <!-- We use a scaled iframe for preview, handling click blocking -->
+                        <iframe :srcdoc="buildDoc(project)" class="w-[200%] h-[200%] origin-top-left scale-50 pointer-events-none border-none" tabindex="-1"></iframe>
+                        <div class="absolute inset-0 bg-transparent"></div> <!-- Click overlay -->
+                    </div>
+                    
+                    <div class="p-4 border-t border-gray-100 bg-white/50 backdrop-blur-sm z-10">
+                        <h3 class="font-semibold text-gray-900 truncate" x-text="project.title || 'Untitled'"></h3>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-xs text-gray-400 font-mono" x-text="'@' + (project.expand?.author_id?.username || 'user')"></span>
+                            <div class="flex items-center gap-3 text-xs text-gray-500">
+                                <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> <span x-text="project.likes || 0"></span></span>
+                                <span class="flex items-center gap-1"><i data-lucide="git-fork" class="w-3 h-3"></i> Remix</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </template>
+        </div>
+        
+        <div x-show="!isLoading && projects.length === 0" class="text-center py-20 text-gray-400">
+            No projects found. Be the first to deploy!
+        </div>
+    </div>
+
+    <!-- MODE: DETAIL VIEW (Fullscreen) -->
+    <div x-cloak x-show="currentId" class="fixed inset-0 bg-white flex flex-col">
+        
+        <!-- Floating Navigation Capsule -->
+        <div class="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-1.5 bg-white/90 backdrop-blur-md rounded-full border border-gray-200 shadow-lg transition-all hover:scale-[1.02]">
+            
+            <a href="view.html" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Back to Plaza">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-gray-600"></i>
+            </a>
+            
+            <div class="h-4 w-px bg-gray-200 mx-1"></div>
+            
+            <div class="flex items-center gap-2 px-2">
+                <div class="w-6 h-6 bg-gradient-to-tr from-gray-200 to-gray-400 rounded-full"></div>
+                <span class="text-sm font-medium max-w-[150px] truncate" x-text="activeProject?.title || 'Loading...'"></span>
+            </div>
+
+            <div class="h-4 w-px bg-gray-200 mx-1"></div>
+
+            <button @click="likeProject()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-pink-50 text-gray-600 hover:text-pink-500 transition-colors">
+                <i data-lucide="heart" class="w-4 h-4" :class="liked ? 'fill-pink-500 text-pink-500' : ''"></i>
+                <span class="text-xs font-semibold" x-text="activeProject?.likes || 0"></span>
+            </button>
+
+            <a :href="'index.html?remix_id=' + currentId" class="flex items-center gap-1.5 px-4 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors text-xs font-medium">
+                <i data-lucide="git-fork" class="w-3 h-3"></i>
+                Remix
+            </a>
+
+            <!-- Mobile QR Toggle -->
+            <button @click="showQR = !showQR" class="md:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100">
+                <i data-lucide="qr-code" class="w-4 h-4 text-gray-600"></i>
+            </button>
+        </div>
+
+        <!-- Desktop QR Code (Bottom Right) -->
+        <div class="hidden md:block absolute bottom-8 right-8 bg-white/90 backdrop-blur p-3 rounded-2xl shadow-lg border border-gray-200 z-40">
+            <div id="qrcode-desktop"></div>
+            <p class="text-[10px] text-center mt-2 text-gray-500 font-medium">Scan to Preview</p>
+        </div>
+
+        <!-- Mobile QR Overlay -->
+        <div x-show="showQR" @click.away="showQR = false" class="absolute top-20 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur p-6 rounded-3xl shadow-2xl border border-gray-200 z-50 md:hidden animate-in fade-in zoom-in-95">
+            <div id="qrcode-mobile"></div>
+            <p class="text-xs text-center mt-3 text-gray-500">Scan to Preview</p>
+        </div>
+
+        <!-- Fullscreen Preview -->
+        <div class="flex-1 w-full h-full bg-white relative">
+            <iframe :srcdoc="activeDoc" class="w-full h-full border-none" sandbox="allow-scripts allow-modals allow-same-origin"></iframe>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div x-cloak x-show="error" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-50 text-red-600 px-4 py-2 rounded-lg border border-red-200 text-sm shadow-lg z-50">
+        <span x-text="error"></span>
+    </div>
+
+    <script>
+        const CONFIG = {
+            POCKETBASE_URL: "https://db.miaodemo.com"
+        };
+
+        const pb = new PocketBase(CONFIG.POCKETBASE_URL);
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('viewer', () => ({
+                currentId: null,
+                projects: [],
+                activeProject: null,
+                isLoading: true,
+                liked: false,
+                error: '',
+                showQR: false,
+
+                async init() {
+                    lucide.createIcons();
+                    
+                    // Route Logic
+                    const params = new URLSearchParams(window.location.search);
+                    this.currentId = params.get('id');
+
+                    if (this.currentId) {
+                        await this.loadDetail(this.currentId);
+                    } else {
+                        await this.loadList();
+                    }
+                },
+
+                async loadList() {
+                    try {
+                        const result = await pb.collection('projects').getList(1, 50, {
+                            sort: '-created',
+                            expand: 'author_id'
+                        });
+                        this.projects = result.items;
+                    } catch (e) {
+                        this.error = "Failed to load community projects";
+                        console.error(e);
+                    } finally {
+                        this.isLoading = false;
+                        // Re-init icons for list
+                        this.$nextTick(() => lucide.createIcons());
+                    }
+                },
+
+                async loadDetail(id) {
+                    try {
+                        this.activeProject = await pb.collection('projects').getOne(id, {
+                            expand: 'author_id'
+                        });
+                        
+                        // Generate QR Codes
+                        const url = window.location.href;
+                        this.$nextTick(() => {
+                            new QRCode(document.getElementById("qrcode-desktop"), { text: url, width: 80, height: 80 });
+                            new QRCode(document.getElementById("qrcode-mobile"), { text: url, width: 160, height: 160 });
+                            lucide.createIcons();
+                        });
+
+                    } catch (e) {
+                        this.error = "Project not found";
+                        setTimeout(() => window.location.href = 'view.html', 2000);
+                    }
+                },
+
+                buildDoc(project) {
+                    if (!project) return '';
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <style>
+                                body { margin: 0; padding: 0; overflow: hidden; } 
+                                ${project.code_css || ''}
+                            <\/style>
+                        </head>
+                        <body>
+                            ${project.code_html || ''}
+                            <script>${project.code_js || ''}<\/script>
+                        </body>
+                        </html>
+                    `;
+                },
+
+                get activeDoc() {
+                    if (!this.activeProject) return '';
+                    // Full version for Detail View (allows scrolling)
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <style>
+                                ${this.activeProject.code_css || ''}
+                            <\/style>
+                        </head>
+                        <body>
+                            ${this.activeProject.code_html || ''}
+                            <script>${this.activeProject.code_js || ''}<\/script>
+                        </body>
+                        </html>
+                    `;
+                },
+
+                async likeProject() {
+                    if (this.liked || !this.activeProject) return;
+                    try {
+                        // Optimistic update
+                        this.liked = true;
+                        this.activeProject.likes++;
+                        
+                        await pb.collection('projects').update(this.activeProject.id, {
+                            likes: this.activeProject.likes
+                        });
+                    } catch (e) {
+                        this.liked = false;
+                        this.activeProject.likes--;
+                    }
+                }
+            }))
+        })
+    </script>
+</body>
+</html>
+
+
+
