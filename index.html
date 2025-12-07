@@ -507,33 +507,77 @@
                 },
 
                 parseAndApplyCode(text) {
-                    // Extract HTML block
+                    // 1. 尝试匹配标准的 Markdown HTML 块
                     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
-                    // Extract JS/CSS if separate, but assuming Gemini gives one block or separate
-                    // V2.0 strategy: try to grab the biggest code block if no specific html tag
                     
                     let newCode = '';
                     if (htmlMatch) {
                         newCode = htmlMatch[1];
                     } else {
-                        // Fallback: look for any large code block
-                        const genericMatch = text.match(/```\w*\n([\s\S]*?)```/);
-                        if (genericMatch && genericMatch[1].length > 50) newCode = genericMatch[1];
+                        // 2. 备用策略：匹配不带语言标记的代码块
+                        const genericMatch = text.match(/```\n([\s\S]*?)```/);
+                        if (genericMatch) {
+                            newCode = genericMatch[1];
+                        } else {
+                            // 3. 兜底策略：如果 AI 没发 Markdown 块，但看起来像 HTML，直接使用全文
+                            if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+                                newCode = text;
+                            }
+                        }
                     }
 
                     if (newCode) {
-                        this.pushHistory(); // Save old state
+                        this.pushHistory(); // 保存旧版本
                         this.currentCode = newCode;
+                        
+                        // 自动切换到预览并在 UI 上反馈
                         this.viewMode = 'preview';
-                        this.showToast('Code Updated', 'success');
+                        this.showToast('Code Updated & Rendered', 'success');
+                        
+                        // 刷新 mermaid 和 iframe
+                        this.$nextTick(() => {
+                            this.updateIframe();
+                            this.generateMermaid();
+                        });
+                    } else {
+                        // 如果没提取到代码，可能 AI 只是在回复文本，保持在当前页面
+                        console.log("No code block detected in AI response");
                     }
                 },
 
-                analyzeAndPreview() {
+                async analyzeAndPreview() {
                     if (!this.currentCode.trim()) {
                         this.showToast('Paste code first!', 'error');
                         return;
                     }
+
+                    // 1. 智能检测：是否为 React/JSX 代码
+                    const isReact = this.currentCode.includes('import React') || 
+                                    this.currentCode.includes('export default') || 
+                                    this.currentCode.includes('className=') ||
+                                    this.currentCode.includes('useState');
+
+                    // 2. 如果是 React，自动触发 AI 转译流程
+                    if (isReact) {
+                        this.showToast('React code detected. AI is converting...', 'info');
+                        this.loadingStep = 'Converting React to HTML...';
+                        
+                        // 构造一个隐形的指令发送给 Dify
+                        // 注意：这里利用了 sendMessage 现有的逻辑
+                        const conversionPrompt = "Strictly convert this React code to standalone HTML5. Keep the design identical.";
+                        
+                        // 临时保存用户的原始输入（如果有），防止被覆盖
+                        const originalInput = this.chatInput;
+                        this.chatInput = conversionPrompt; 
+                        
+                        await this.sendMessage(); // 调用 Dify
+                        
+                        this.chatInput = originalInput; // 恢复输入框
+                        // sendMessage 成功后会自动切换到 preview 模式
+                        return;
+                    }
+
+                    // 3. 如果已经是 HTML，直接预览
                     this.loadingStep = 'Analyzing Architecture...';
                     this.viewMode = 'preview';
                     this.generateMermaid();
@@ -580,16 +624,19 @@
                 // --- Assets & Architecture ---
 
                 scanAssets() {
-                    const regex = /<img[^>]+src="([^">]+)"/g;
+                    // 支持单引号和双引号，且忽略大小写
+                    const regex = /<img[^>]+src=["']([^"']+)["']/gi;
                     const matches = [];
                     let match;
+                    
                     while ((match = regex.exec(this.currentCode)) !== null) {
-                        // Filter out already replaced PB URLs to prevent loops if re-scanning
-                        if (!match[1].includes(CONFIG.POCKETBASE_URL)) {
+                        // 过滤掉 PocketBase 的 URL 和 Data URI，防止重复替换
+                        if (!match[1].includes(CONFIG.POCKETBASE_URL) && !match[1].startsWith('data:')) {
                             matches.push({ src: match[1] });
                         }
                     }
-                    // Remove duplicates
+                    
+                    // 去重逻辑
                     this.assets = [...new Map(matches.map(item => [item.src, item])).values()];
                 },
 
