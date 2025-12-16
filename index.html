@@ -542,6 +542,21 @@
 
                         const data = await response.json();
 
+                        // Workflow 状态判断（非常关键）：
+                        // workflows/run 即使 200 OK，也可能返回 status=failed 且 outputs 为空
+                        const wf = data?.data && typeof data.data === 'object' ? data.data : null;
+                        const wfStatus = wf?.status;
+                        if (wfStatus && wfStatus !== 'succeeded' && wfStatus !== 'success' && wfStatus !== 'completed') {
+                            const wfErr = wf?.error || wf?.message || 'Unknown workflow error';
+                            const wfRunId = wf?.id || data?.workflow_run_id || wf?.workflow_run_id || null;
+                            const msg =
+                                `Workflow ${wfStatus}: ${wfErr}\n\n` +
+                                (wfRunId ? `workflow_run_id: ${wfRunId}` : '');
+                            this.showToast(`Workflow ${wfStatus}`, 'error');
+                            this.chatHistory.push({ role: 'assistant', content: msg, id: Date.now() });
+                            return;
+                        }
+
                         // 兼容不同 Dify 版本/工作流返回结构：
                         // 常见形式：
                         // - { data: { outputs: { ... } } }
