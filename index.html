@@ -468,29 +468,49 @@
                     // If code is empty and description provided, treat as generation
                     // If code exists, treat as modification
                     
-                    const inputs = {
-                        original_code: this.currentCode || "NO_CODE",
-                        description: query
-                    };
-
                     try {
-                        const response = await fetch(`${CONFIG.DIFY_API_BASE}/chat-messages`, {
+                        // 【V2.1.3 修复】精确适配 miaodemo.yml DSL
+                        const isWorkflow = true; 
+                        const endpoint = isWorkflow ? '/workflows/run' : '/chat-messages';
+                        
+                        // DSL 要求变量: 'code' 和 'requirements'
+                        const safeInputs = {
+                            code: this.currentCode || "NO_CODE", 
+                            requirements: query // 用户输入的描述或转译指令
+                        };
+
+                        const payload = {
+                            inputs: safeInputs,
+                            response_mode: "blocking",
+                            user: (this.user && this.user.id) ? this.user.id : "guest_user_" + Math.random().toString(36).substring(7)
+                        };
+
+                        const response = await fetch(`${CONFIG.DIFY_API_BASE}${endpoint}`, {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${CONFIG.DIFY_API_KEY}`,
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({
-                                inputs: inputs,
-                                query: query,
-                                response_mode: "blocking",
-                                user: this.user ? this.user.id : "guest-user",
-                                conversation_id: ""
-                            })
+                            body: JSON.stringify(payload)
                         });
 
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            let errorMsg = `API Error ${response.status}`;
+                            try {
+                                const errorJson = JSON.parse(errorText);
+                                errorMsg = errorJson.message || errorJson.code || errorMsg;
+                            } catch(e) { errorMsg = errorText.substring(0, 100); }
+                            throw new Error(errorMsg);
+                        }
+
                         const data = await response.json();
-                        const answer = data.answer;
+                        
+                        // DSL 输出变量名为 'final_html'
+                        const answer = data.data?.outputs?.final_html || 
+                                       data.data?.outputs?.text || 
+                                       data.answer || 
+                                       "AI response format error: Output variable 'final_html' not found.";
                         
                         this.chatHistory.push({ role: 'assistant', content: answer, id: Date.now() });
                         
@@ -498,8 +518,13 @@
                         this.parseAndApplyCode(answer);
                         
                     } catch (error) {
-                        this.showToast('AI Connection Failed', 'error');
-                        console.error(error);
+                        this.showToast('AI Error: ' + error.message, 'error');
+                        console.error("Dify Request Failed:", error);
+                        this.chatHistory.push({ 
+                            role: 'assistant', 
+                            content: `**Connection Error**: ${error.message}\n\n*Tip: Check Dify Workflow variables.*`, 
+                            id: Date.now() 
+                        });
                     } finally {
                         this.loadingStep = '';
                         this.scrollToBottom();
@@ -507,6 +532,8 @@
                 },
 
                 parseAndApplyCode(text) {
+                    if (!text) return; // 防御性编程：防止 null/undefined 报错
+
                     // 1. 尝试匹配标准的 Markdown HTML 块
                     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
                     
@@ -563,8 +590,8 @@
                         this.loadingStep = 'Converting React to HTML...';
                         
                         // 构造一个隐形的指令发送给 Dify
-                        // 注意：这里利用了 sendMessage 现有的逻辑
-                        const conversionPrompt = "Strictly convert this React code to standalone HTML5. Keep the design identical.";
+                        // 针对 DSL 路由优化：明确包含 'React' 和 'convert' 关键词，以便智能判官识别
+                        const conversionPrompt = "Current code is React/JSX. Please transpile it to standalone HTML5 + Tailwind + Alpine.js. Keep UI identical.";
                         
                         // 临时保存用户的原始输入（如果有），防止被覆盖
                         const originalInput = this.chatInput;
