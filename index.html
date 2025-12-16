@@ -306,19 +306,35 @@
             <span class="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Dify Connected</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30" id="chat-container">
-            <!-- Initial Prompt Bubbles -->
-            <div x-show="chatHistory.length === 0" class="grid grid-cols-1 gap-2 mt-4">
-                <button @click="setPrompt('Create a Cyberpunk personal resume page')" class="text-left p-3 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-600">
-                    🚀 Cyberpunk Resume
+        <!-- Prompt Bar (Pinned) -->
+        <div class="px-4 py-3 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
+            <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                <button
+                    @click="setPrompt('Create a Cyberpunk personal resume page with neon accents and glassmorphism, including avatar, skills, and contact links.')"
+                    class="shrink-0 inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-700 max-w-[220px]"
+                    title="Create a Cyberpunk personal resume page with neon accents and glassmorphism, including avatar, skills, and contact links.">
+                    <span class="text-sm">🚀</span>
+                    <span class="truncate">Cyberpunk Resume</span>
                 </button>
-                <button @click="setPrompt('Build a minimalist landing page for a coffee shop')" class="text-left p-3 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-600">
-                    ☕ Coffee Shop Landing
+                <button
+                    @click="setPrompt('Build a minimalist landing page for a coffee shop with hero section, menu highlights, and a call-to-action button.')"
+                    class="shrink-0 inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-700 max-w-[220px]"
+                    title="Build a minimalist landing page for a coffee shop with hero section, menu highlights, and a call-to-action button.">
+                    <span class="text-sm">☕</span>
+                    <span class="truncate">Coffee Shop Landing</span>
                 </button>
-                <button @click="setPrompt('Design a simple calculator with glassmorphism')" class="text-left p-3 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-600">
-                    🧮 Glass Calculator
+                <button
+                    @click="setPrompt('Design a simple calculator with glassmorphism style, smooth interactions, and keyboard support.')"
+                    class="shrink-0 inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:border-brand-300 hover:shadow-sm transition-all text-xs text-gray-700 max-w-[220px]"
+                    title="Design a simple calculator with glassmorphism style, smooth interactions, and keyboard support.">
+                    <span class="text-sm">🧮</span>
+                    <span class="truncate">Glass Calculator</span>
                 </button>
             </div>
+            <div class="text-[10px] text-gray-400 mt-1">提示：鼠标悬停可查看完整内容</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30" id="chat-container">
 
             <template x-for="msg in chatHistory" :key="msg.id">
                 <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
