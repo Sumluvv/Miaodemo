@@ -549,9 +549,13 @@
                         if (wfStatus && wfStatus !== 'succeeded' && wfStatus !== 'success' && wfStatus !== 'completed') {
                             const wfErr = wf?.error || wf?.message || 'Unknown workflow error';
                             const wfRunId = wf?.id || data?.workflow_run_id || wf?.workflow_run_id || null;
+                            const wfPreview = (() => {
+                                try { return JSON.stringify(wf).slice(0, 1200); } catch { return String(wf); }
+                            })();
                             const msg =
                                 `Workflow ${wfStatus}: ${wfErr}\n\n` +
-                                (wfRunId ? `workflow_run_id: ${wfRunId}` : '');
+                                (wfRunId ? `workflow_run_id: ${wfRunId}\n\n` : '') +
+                                `Workflow raw preview (first 1200 chars): ${wfPreview}`;
                             this.showToast(`Workflow ${wfStatus}`, 'error');
                             this.chatHistory.push({ role: 'assistant', content: msg, id: Date.now() });
                             return;
