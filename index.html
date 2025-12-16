@@ -331,12 +331,12 @@
                     x-model="chatInput" 
                     @keydown.enter.prevent="sendMessage()"
                     placeholder="Describe changes (e.g. 'Make the button blue')..." 
-                    class="w-full pl-4 pr-14 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-300 focus:bg-white transition-all resize-none shadow-inner"
+                    class="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-300 focus:bg-white transition-all resize-none shadow-inner"
                     rows="2"></textarea>
                 <button 
                     @click="sendMessage()"
                     :disabled="!!loadingStep || !chatInput.trim()"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center">
+                    class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-brand-600 text-white rounded-full hover:bg-brand-700 disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center">
                     <i data-lucide="arrow-up" class="w-4 h-4"></i>
                 </button>
             </div>
