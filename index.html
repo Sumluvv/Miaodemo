@@ -541,12 +541,34 @@
                         }
 
                         const data = await response.json();
-                        
-                        // DSL 输出变量名为 'final_html'
-                        const answer = data.data?.outputs?.final_html || 
-                                       data.data?.outputs?.text || 
-                                       data.answer || 
-                                       "AI response format error: Output variable 'final_html' not found.";
+
+                        // 兼容不同 Dify 版本/工作流返回结构：
+                        // 常见形式：
+                        // - { data: { outputs: { ... } } }
+                        // - { data: { ... } }（outputs 直接挂在 data 上）
+                        // - { outputs: { ... } }
+                        const outputs =
+                            data?.data?.outputs ??
+                            data?.data ??
+                            data?.outputs ??
+                            {};
+
+                        // DSL 期望输出变量名：final_html（你的 miaodemo.yml 中大多数 end 节点输出的是 final_html）
+                        // 但错误分支可能输出 text，所以这里做兜底。
+                        const answer =
+                            outputs?.final_html ??
+                            outputs?.text ??
+                            outputs?.answer ??
+                            data?.answer ??
+                            null;
+
+                        if (!answer) {
+                            const keys = outputs && typeof outputs === 'object' ? Object.keys(outputs) : [];
+                            const debugHint = `AI response format error: Output 'final_html' not found. Available keys: ${keys.join(', ') || '(none)'}`;
+                            console.warn('Dify raw response:', data);
+                            this.chatHistory.push({ role: 'assistant', content: debugHint, id: Date.now() });
+                            return;
+                        }
                         
                         this.chatHistory.push({ role: 'assistant', content: answer, id: Date.now() });
                         
