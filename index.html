@@ -564,8 +564,23 @@
 
                         if (!answer) {
                             const keys = outputs && typeof outputs === 'object' ? Object.keys(outputs) : [];
-                            const debugHint = `AI response format error: Output 'final_html' not found. Available keys: ${keys.join(', ') || '(none)'}`;
-                            console.warn('Dify raw response:', data);
+                            const summary = {
+                                topLevelKeys: data && typeof data === 'object' ? Object.keys(data) : [],
+                                dataKeys: data?.data && typeof data.data === 'object' ? Object.keys(data.data) : [],
+                                outputsKeys: keys,
+                                workflow_run_id: data?.data?.workflow_run_id ?? data?.workflow_run_id ?? null,
+                                task_id: data?.data?.task_id ?? data?.task_id ?? null,
+                                message: data?.message ?? null,
+                                code: data?.code ?? null,
+                            };
+                            const rawPreview = (() => {
+                                try { return JSON.stringify(data).slice(0, 800); } catch { return String(data); }
+                            })();
+                            const debugHint =
+                                `AI response format error: Output 'final_html' not found. Available keys: ${keys.join(', ') || '(none)'}\n\n` +
+                                `Debug summary: ${JSON.stringify(summary)}\n\n` +
+                                `Raw preview (first 800 chars): ${rawPreview}`;
+                            console.warn('Dify raw response (stringified):', rawPreview);
                             this.chatHistory.push({ role: 'assistant', content: debugHint, id: Date.now() });
                             return;
                         }
