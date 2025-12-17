@@ -47,6 +47,19 @@
         /* Prism overrides */
         pre[class*="language-"] { margin: 0; background: #f9fafb; border-radius: 0.5rem; font-size: 0.85rem; }
 
+        /* Chat code blocks: collapsible by default + avoid horizontal scrollbar */
+        #chat-container { overflow-x: hidden; }
+        .chat-code summary { list-style: none; }
+        .chat-code summary::-webkit-details-marker { display: none; }
+        .chat-code pre[class*="language-"] {
+            max-height: 320px;           /* keep inside chat area */
+            overflow-y: auto;            /* allow vertical scroll inside block */
+            overflow-x: hidden;          /* remove bottom horizontal bar */
+            white-space: pre-wrap;       /* wrap long lines */
+            word-break: break-word;
+        }
+        .chat-code code { white-space: pre-wrap; word-break: break-word; }
+
         .loader {
             height: 4px;
             width: 100%;
@@ -605,6 +618,10 @@
                         }
                         
                         this.chatHistory.push({ role: 'assistant', content: answer, id: Date.now() });
+                        // Ensure code blocks are highlighted after DOM updates
+                        this.$nextTick(() => {
+                            try { Prism && Prism.highlightAll(); } catch (e) {}
+                        });
                         
                         // Parse Code
                         this.parseAndApplyCode(answer);
@@ -955,7 +972,70 @@
                 },
 
                 // Utilities
-                renderMarkdown(text) { return marked.parse(text); },
+                renderMarkdown(text) {
+                    // 让聊天中的“代码文件”默认折叠：显示文件名（或语言），点击展开
+                    const escapeHtml = (s) => String(s == null ? '' : s)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+
+                    const inferTitle = (info, code) => {
+                        const rawInfo = (info || '').trim();
+                        const first = String(code || '').split('\n')[0];
+                        const firstLine = (first ? String(first).trim() : '');
+
+                        // Prefer filename-like info string (e.g. index.html, app.tsx)
+                        const looksLikeFile = (s) => /\.[a-z0-9]{1,8}$/i.test(s) && !/\s/.test(s);
+                        if (rawInfo && looksLikeFile(rawInfo)) return rawInfo;
+
+                        // Detect "File: xxx" hints in the first line (avoid "<!--" regex to prevent HTML/JS linter confusion)
+                        if (firstLine && firstLine.toLowerCase().indexOf('file:') !== -1) {
+                            const m1 = firstLine.match(/file:\s*([a-z0-9._\-\/]+)\s*$/i);
+                            if (m1 && m1[1]) return m1[1];
+                        }
+
+                        // Fallback to language label
+                        const lang = rawInfo || 'text';
+                        const pretty = ({
+                            html: 'HTML',
+                            css: 'CSS',
+                            js: 'JavaScript',
+                            javascript: 'JavaScript',
+                            ts: 'TypeScript',
+                            typescript: 'TypeScript',
+                            json: 'JSON',
+                            yaml: 'YAML',
+                            yml: 'YAML',
+                            md: 'Markdown'
+                        })[lang.toLowerCase()] || lang.toUpperCase();
+                        return `代码块 (${pretty})`;
+                    };
+
+                    const renderer = new marked.Renderer();
+                    renderer.code = (code, infostring) => {
+                        const title = inferTitle(infostring, code);
+                        const lang = (infostring || '').trim();
+                        const langClass = lang ? `language-${escapeHtml(lang)}` : 'language-none';
+                        const safeCode = escapeHtml(code || '');
+
+                        // <details> 默认折叠；展开后高度限制在聊天区域内（CSS 控制）
+                        return `
+<details class="chat-code border border-gray-200 rounded-xl bg-white overflow-hidden my-2">
+  <summary class="px-3 py-2 bg-gray-50 flex items-center justify-between cursor-pointer select-none">
+    <span class="text-xs font-semibold text-gray-700 truncate">${escapeHtml(title)}</span>
+    <span class="text-[10px] text-gray-400">点击展开/折叠</span>
+  </summary>
+  <div class="p-3 bg-white">
+    <pre class="${langClass}"><code class="${langClass}">${safeCode}</code></pre>
+  </div>
+</details>`;
+                    };
+
+                    marked.setOptions({ renderer });
+                    return marked.parse(text || '');
+                },
                 scrollToBottom() {
                     this.$nextTick(() => {
                         const container = document.getElementById('chat-container');
