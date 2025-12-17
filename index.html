@@ -981,9 +981,20 @@
                         .replace(/"/g, '&quot;')
                         .replace(/'/g, '&#39;');
 
-                    const inferTitle = (info, code) => {
+                    const normalizeCodeArgs = (codeArg, infoArg) => {
+                        // marked v4: (code: string, infostring: string)
+                        // marked v5+: (code: { text, lang, escaped? }, infostring?: string)
+                        if (codeArg && typeof codeArg === 'object') {
+                            const text = codeArg.text || '';
+                            const lang = codeArg.lang || codeArg.language || infoArg || '';
+                            return { text, lang };
+                        }
+                        return { text: String(codeArg || ''), lang: String(infoArg || '') };
+                    };
+
+                    const inferTitle = (info, codeText) => {
                         const rawInfo = (info || '').trim();
-                        const first = String(code || '').split('\n')[0];
+                        const first = String(codeText || '').split('\n')[0];
                         const firstLine = (first ? String(first).trim() : '');
 
                         // Prefer filename-like info string (e.g. index.html, app.tsx)
@@ -1015,10 +1026,11 @@
 
                     const renderer = new marked.Renderer();
                     renderer.code = (code, infostring) => {
-                        const title = inferTitle(infostring, code);
-                        const lang = (infostring || '').trim();
+                        const { text: codeText, lang: langRaw } = normalizeCodeArgs(code, infostring);
+                        const title = inferTitle(langRaw, codeText);
+                        const lang = (langRaw || '').trim();
                         const langClass = lang ? `language-${escapeHtml(lang)}` : 'language-none';
-                        const safeCode = escapeHtml(code || '');
+                        const safeCode = escapeHtml(codeText || '');
 
                         // <details> 默认折叠；展开后高度限制在聊天区域内（CSS 控制）
                         return `
