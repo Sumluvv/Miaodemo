@@ -78,6 +78,11 @@
             animation: load 1.5s infinite ease-in-out;
         }
         @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
+
+        /* Mermaid rendering polish */
+        #mermaid-container svg { width: 100%; height: 100%; }
+        #mermaid-container .node rect { rx: 12; ry: 12; }
+        #mermaid-container .node { transition: opacity 150ms ease; }
     </style>
 </head>
 
@@ -968,7 +973,8 @@
 
                 generateMermaid() {
                     // Goal: 给“多文件项目”一个可点击的架构指引（点击文件节点切换编辑器）
-                    let graph = "graph TD;\n";
+                    // 用稳定的 nodeId 绑定点击（不要依赖 SVG 里的文字内容）
+                    let graph = "graph LR;\n";
                     graph += "User((User)) --> UI[Browser UI];\n";
                     
                     // Simple static analysis
@@ -977,58 +983,98 @@
                     const hasFetch = html.includes('fetch(');
 
                     // Files (clickable)
-                    const files = (this.codeFiles && this.codeFiles.length) ? this.codeFiles : [{ name: 'index.html', lang: 'html', content: html }];
+                    const files = (this.codeFiles && this.codeFiles.length)
+                        ? this.codeFiles
+                        : [{ name: 'index.html', lang: 'html', content: html }];
                     const entry = files.find(f => (f.name || '').toLowerCase().endsWith('.html')) || files[0];
 
                     const nodeId = (name) => ('F_' + String(name).replace(/[^a-zA-Z0-9_]/g, '_'));
-                    graph += `UI --> ${nodeId(entry.name)}[${entry.name}];\n`;
+                    const fileNodeMap = {}; // nodeId -> filename
+
+                    const entryId = nodeId(entry.name);
+                    fileNodeMap[entryId] = entry.name;
+
+                    graph += `UI --> ${entryId}[${entry.name}];\n`;
+
+                    // Group files for readability
+                    graph += "subgraph Files\n";
+                    graph += `${entryId}\n`;
+                    files.forEach((f) => {
+                        if (!f || !f.name) return;
+                        const fid = nodeId(f.name);
+                        fileNodeMap[fid] = f.name;
+                        if (fid !== entryId) graph += `${fid}[${f.name}]\n`;
+                    });
+                    graph += "end\n";
 
                     // Link entry to sibling files (css/js)
                     files.forEach((f) => {
                         if (!f || !f.name) return;
                         if (f.name === entry.name) return;
-                        graph += `${nodeId(entry.name)} --> ${nodeId(f.name)}[${f.name}];\n`;
+                        graph += `${entryId} --> ${nodeId(f.name)};\n`;
                     });
 
                     // Derived structure hints
                     const hasCss = files.some(f => (f.name || '').toLowerCase().endsWith('.css')) || html.includes('<style');
                     const hasJs = files.some(f => (f.name || '').toLowerCase().endsWith('.js')) || html.includes('<script');
 
-                    if (hasJs || hasFetch) graph += `${nodeId(entry.name)} --> Logic[JS Logic];\n`;
+                    graph += "subgraph Runtime\n";
+                    if (hasJs || hasFetch) graph += "Logic[JS Logic]\n";
+                    if (hasCss) graph += "Style[CSS Styles]\n";
+                    if (html.includes('<img')) graph += "Assets[Images]\n";
+                    graph += "end\n";
+
+                    if (hasJs || hasFetch) graph += `${entryId} --> Logic;\n`;
                     if (hasPB) graph += "Logic-->DB[(PocketBase)];\n";
-                    if (hasCss) graph += `${nodeId(entry.name)} --> Style[CSS Styles];\n`;
-                    if (html.includes('<img')) graph += `${nodeId(entry.name)} --> Assets[Images];\n`;
+                    if (hasCss) graph += `${entryId} --> Style;\n`;
+                    if (html.includes('<img')) graph += `${entryId} --> Assets;\n`;
                     
-                    graph += "style UI fill:#dbeafe,stroke:#2563EB,stroke-width:2px;\n";
-                    graph += "style DB fill:#f0fdfa,stroke:#0d9488,stroke-width:2px;";
+                    // Styling
+                    graph += "classDef file fill:#fff7ed,stroke:#f59e0b,stroke-width:1px,color:#7c2d12;\n";
+                    graph += "classDef sys fill:#eff6ff,stroke:#2563EB,stroke-width:2px,color:#1e3a8a;\n";
+                    graph += "classDef runtime fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#334155;\n";
+                    graph += "classDef backend fill:#ecfeff,stroke:#0d9488,stroke-width:2px,color:#0f766e;\n";
+                    graph += `class UI sys;\n`;
+                    graph += `class ${Object.keys(fileNodeMap).join(',')} file;\n`;
+                    if (hasJs || hasFetch) graph += "class Logic runtime;\n";
+                    if (hasCss) graph += "class Style runtime;\n";
+                    if (html.includes('<img')) graph += "class Assets runtime;\n";
+                    if (hasPB) graph += "class DB backend;\n";
 
                     const container = document.getElementById('mermaid-container');
                     container.innerHTML = '';
                     mermaid.render('mermaid-svg', graph).then(result => {
                         container.innerHTML = result.svg;
                         // Bind clicks: click file nodes -> switch editor to file
-                        this.bindMermaidFileClicks();
+                        this.bindMermaidFileClicks(fileNodeMap);
                     });
                 },
 
-                bindMermaidFileClicks() {
+                bindMermaidFileClicks(fileNodeMap) {
                     const container = document.getElementById('mermaid-container');
                     const svg = container ? container.querySelector('svg') : null;
                     if (!svg) return;
 
-                    const files = (this.codeFiles && this.codeFiles.length) ? this.codeFiles : [];
-                    if (!files.length) return;
+                    const map = fileNodeMap && typeof fileNodeMap === 'object' ? fileNodeMap : {};
+                    const keys = Object.keys(map);
+                    if (!keys.length) return;
 
-                    const nodes = svg.querySelectorAll('g.node');
+                    // Mermaid renders node groups with ids like "flowchart-F_xxx-0"
+                    const nodes = svg.querySelectorAll('g.node[id]');
                     nodes.forEach((node) => {
-                        const t = Array.from(node.querySelectorAll('text')).map(x => (x.textContent || '').trim()).filter(Boolean).join(' ');
-                        if (!t) return;
-                        const hit = files.find(f => (f.name || '').trim() === t);
-                        if (!hit) return;
+                        const gid = node.getAttribute('id') || '';
+                        const key = keys.find(k => gid.indexOf(k) !== -1);
+                        if (!key) return;
+                        const filename = map[key];
+                        if (!filename) return;
 
                         node.style.cursor = 'pointer';
-                        node.addEventListener('click', () => this.selectFile(hit.name, true), { passive: true });
-                        node.addEventListener('mouseenter', () => { node.style.opacity = '0.9'; }, { passive: true });
+                        node.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.selectFile(filename, true);
+                        });
+                        node.addEventListener('mouseenter', () => { node.style.opacity = '0.92'; }, { passive: true });
                         node.addEventListener('mouseleave', () => { node.style.opacity = '1'; }, { passive: true });
                     });
                 },
