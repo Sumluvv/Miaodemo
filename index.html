@@ -973,16 +973,14 @@
 
                 generateMermaid() {
                     // Goal: 给“多文件项目”一个可点击的架构指引（点击文件节点切换编辑器）
-                    // 用稳定的 nodeId 绑定点击（不要依赖 SVG 里的文字内容）
-                    let graph = "graph LR;\n";
-                    graph += "User((User)) --> UI[Browser UI];\n";
-                    
-                    // Simple static analysis
+                    // 修复点：保证 Mermaid 语法始终合法；渲染失败也要给出提示，避免“清空后消失”
+                    const container = document.getElementById('mermaid-container');
+                    if (!container) return;
+
                     const html = this.mainHtmlCode || this.currentCode || '';
                     const hasPB = html.includes('PocketBase') || html.includes('pocketbase') || html.includes('db.miaodemo.com');
                     const hasFetch = html.includes('fetch(');
 
-                    // Files (clickable)
                     const files = (this.codeFiles && this.codeFiles.length)
                         ? this.codeFiles
                         : [{ name: 'index.html', lang: 'html', content: html }];
@@ -992,61 +990,74 @@
                     const fileNodeMap = {}; // nodeId -> filename
 
                     const entryId = nodeId(entry.name);
-                    fileNodeMap[entryId] = entry.name;
+                    files.forEach((f) => {
+                        if (!f || !f.name) return;
+                        fileNodeMap[nodeId(f.name)] = f.name;
+                    });
 
-                    graph += `UI --> ${entryId}[${entry.name}];\n`;
+                    const hasCss = files.some(f => (f.name || '').toLowerCase().endsWith('.css')) || html.includes('<style');
+                    const hasJs = files.some(f => (f.name || '').toLowerCase().endsWith('.js')) || html.includes('<script');
+                    const hasImg = html.includes('<img');
 
-                    // Group files for readability
+                    const escapeText = (s) => String(s == null ? '' : s).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+                    // Build a valid Mermaid graph (no bare node ids inside subgraph)
+                    let graph = "graph LR;\n";
+                    graph += "User((User)) --> UI[Browser UI];\n";
+
                     graph += "subgraph Files\n";
-                    graph += `${entryId}\n`;
+                    graph += `UI --> ${entryId}[${entry.name}];\n`;
                     files.forEach((f) => {
                         if (!f || !f.name) return;
                         const fid = nodeId(f.name);
-                        fileNodeMap[fid] = f.name;
-                        if (fid !== entryId) graph += `${fid}[${f.name}]\n`;
+                        graph += `${fid}[${f.name}];\n`;
                     });
                     graph += "end\n";
 
-                    // Link entry to sibling files (css/js)
                     files.forEach((f) => {
                         if (!f || !f.name) return;
                         if (f.name === entry.name) return;
                         graph += `${entryId} --> ${nodeId(f.name)};\n`;
                     });
 
-                    // Derived structure hints
-                    const hasCss = files.some(f => (f.name || '').toLowerCase().endsWith('.css')) || html.includes('<style');
-                    const hasJs = files.some(f => (f.name || '').toLowerCase().endsWith('.js')) || html.includes('<script');
-
                     graph += "subgraph Runtime\n";
-                    if (hasJs || hasFetch) graph += "Logic[JS Logic]\n";
-                    if (hasCss) graph += "Style[CSS Styles]\n";
-                    if (html.includes('<img')) graph += "Assets[Images]\n";
+                    if (hasJs || hasFetch) graph += "Logic[JS Logic];\n";
+                    if (hasCss) graph += "Style[CSS Styles];\n";
+                    if (hasImg) graph += "Assets[Images];\n";
                     graph += "end\n";
 
                     if (hasJs || hasFetch) graph += `${entryId} --> Logic;\n`;
-                    if (hasPB) graph += "Logic-->DB[(PocketBase)];\n";
                     if (hasCss) graph += `${entryId} --> Style;\n`;
-                    if (html.includes('<img')) graph += `${entryId} --> Assets;\n`;
-                    
+                    if (hasImg) graph += `${entryId} --> Assets;\n`;
+                    if (hasPB) graph += "Logic --> DB[(PocketBase)];\n";
+
                     // Styling
                     graph += "classDef file fill:#fff7ed,stroke:#f59e0b,stroke-width:1px,color:#7c2d12;\n";
                     graph += "classDef sys fill:#eff6ff,stroke:#2563EB,stroke-width:2px,color:#1e3a8a;\n";
                     graph += "classDef runtime fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#334155;\n";
                     graph += "classDef backend fill:#ecfeff,stroke:#0d9488,stroke-width:2px,color:#0f766e;\n";
-                    graph += `class UI sys;\n`;
+                    graph += "class UI sys;\n";
                     graph += `class ${Object.keys(fileNodeMap).join(',')} file;\n`;
                     if (hasJs || hasFetch) graph += "class Logic runtime;\n";
                     if (hasCss) graph += "class Style runtime;\n";
-                    if (html.includes('<img')) graph += "class Assets runtime;\n";
+                    if (hasImg) graph += "class Assets runtime;\n";
                     if (hasPB) graph += "class DB backend;\n";
 
-                    const container = document.getElementById('mermaid-container');
-                    container.innerHTML = '';
-                    mermaid.render('mermaid-svg', graph).then(result => {
-                        container.innerHTML = result.svg;
-                        // Bind clicks: click file nodes -> switch editor to file
-                        this.bindMermaidFileClicks(fileNodeMap);
+                    // Render after layout settles (fix disappearing on view switch)
+                    container.innerHTML = '<div class="text-xs text-gray-400 font-mono">Rendering diagram…</div>';
+                    const renderId = `mermaid-svg-${Date.now()}`;
+                    this.$nextTick(() => {
+                        requestAnimationFrame(() => {
+                            mermaid.render(renderId, graph)
+                                .then((result) => {
+                                    container.innerHTML = result.svg;
+                                    this.bindMermaidFileClicks(fileNodeMap);
+                                })
+                                .catch((err) => {
+                                    const msg = escapeText(err && (err.message || String(err)));
+                                    container.innerHTML = `<div class="text-xs text-red-600 font-mono whitespace-pre-wrap">Mermaid render failed:\n${msg}</div>`;
+                                });
+                        });
                     });
                 },
 
