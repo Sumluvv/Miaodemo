@@ -316,48 +316,19 @@
                         </div>
                     </div>
                 
-                <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-50/50 relative" x-show="!isArchCollapsed">
-                    <div class="w-full h-full grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <!-- Architecture Guide: file list -->
-                        <div class="md:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-                            <div class="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                                <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Files</div>
-                                <div class="text-[10px] text-gray-400" x-text="codeFiles.length ? (codeFiles.length + ' files') : 'No files'"></div>
-                            </div>
-                            <div class="flex-1 overflow-auto p-2">
-                                <template x-if="codeFiles.length === 0">
-                                    <div class="text-xs text-gray-400 px-2 py-3">
-                                        当 AI 输出多文件（例如 <span class="font-mono">index.html / styles.css / app.js</span>）时，这里会出现可点击文件列表，帮助你定位结构。
-                                    </div>
-                                </template>
-                                <template x-for="f in codeFiles" :key="f.name">
-                                    <button
-                                        class="w-full text-left px-3 py-2 rounded-lg border transition-colors flex items-center justify-between gap-3 mb-2"
-                                        :class="activeFileName === f.name ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-200 hover:bg-gray-50'"
-                                        @click="selectFile(f.name, true)">
-                                        <div class="min-w-0">
-                                            <div class="text-xs font-semibold text-gray-800 truncate" x-text="f.name"></div>
-                                            <div class="text-[10px] text-gray-400" x-text="f.lang ? ('type: ' + f.lang) : 'type: unknown'"></div>
-                                        </div>
-                                        <div class="text-[10px] text-gray-400 shrink-0" x-text="(f.content || '').length + ' chars'"></div>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- Mermaid diagram -->
-                        <div class="md:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-                            <div class="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <div class="flex-1 overflow-auto p-4 bg-slate-50/50 relative" x-show="!isArchCollapsed">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0 h-full">
+                        <div class="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div class="flex items-center gap-2 min-w-0">
                                 <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Architecture</div>
-                                <button @click="generateMermaid()"
-                                        class="text-[10px] font-medium text-brand-600 px-2 py-1 rounded hover:bg-brand-50 transition-colors"
-                                        title="Refresh Diagram">
-                                    Refresh
-                                </button>
+                                <div class="text-[10px] text-gray-400 truncate">
+                                    点击图中的文件节点可切换上方编辑器
+                                </div>
                             </div>
-                            <div class="flex-1 overflow-auto p-3 bg-slate-50/50">
-                                <div id="mermaid-container" class="w-full h-full flex justify-center items-center font-mono text-sm opacity-90"></div>
-                            </div>
+                            <div class="text-[10px] text-gray-400" x-text="codeFiles.length ? (codeFiles.length + ' file(s)') : 'single file'"></div>
+                        </div>
+                        <div class="flex-1 overflow-auto p-3 bg-white">
+                            <div id="mermaid-container" class="w-full h-full flex justify-center items-center font-mono text-sm opacity-90"></div>
                         </div>
                     </div>
                 </div>
@@ -482,6 +453,7 @@
                 codeFiles: [], // [{ name, lang, content }]
                 activeFileName: '',
                 mainHtmlCode: '', // used for preview/deploy when multiple files exist
+                mermaidClickableFiles: [], // [{ name }]
                 projectDesc: '',
                 chatHistory: [],
                 history: [], // [{ timestamp: number, code: string }]
@@ -795,10 +767,16 @@
                         this.activeFileName = main.name;
                         newCode = main.content; // keep editor/preview aligned on a sensible entry file
                     } else {
-                        // Single-file mode: clear file list
-                        this.codeFiles = [];
-                        this.activeFileName = '';
-                        this.mainHtmlCode = '';
+                        // Single-file mode: keep a virtual "index.html" so the architecture diagram can still be clickable
+                        if (newCode) {
+                            this.codeFiles = [{ name: 'index.html', lang: 'html', content: newCode }];
+                            this.activeFileName = 'index.html';
+                            this.mainHtmlCode = newCode;
+                        } else {
+                            this.codeFiles = [];
+                            this.activeFileName = '';
+                            this.mainHtmlCode = '';
+                        }
                     }
 
                     if (newCode) {
@@ -993,35 +971,69 @@
                 },
 
                 generateMermaid() {
-                    let graph = "graph LR;\nUser((User))-->Client[Browser UI];\n";
+                    // Goal: 给“多文件项目”一个可点击的架构指引（点击文件节点切换编辑器）
+                    let graph = "graph TD;\n";
+                    graph += "User((User)) --> UI[Browser UI];\n";
                     
                     // Simple static analysis
                     const html = this.mainHtmlCode || this.currentCode || '';
                     const hasPB = html.includes('PocketBase') || html.includes('pocketbase') || html.includes('db.miaodemo.com');
                     const hasFetch = html.includes('fetch(');
 
-                    if (this.codeFiles.length >= 2) {
-                        graph += "Client-->Entry[index.html];\n";
-                        this.codeFiles.forEach((f) => {
-                            const n = f.name.replace(/[^a-zA-Z0-9_]/g, '_');
-                            const label = f.name;
-                            if (f.name.toLowerCase().endsWith('.html')) graph += `Entry-->${n}[${label}];\n`;
-                            else graph += `Entry-->${n}[${label}];\n`;
-                        });
-                    } else {
-                        graph += "Client-->Entry[index.html];\n";
-                    }
-                    if (hasFetch) graph += "Client-->Logic[JS Logic];\n";
+                    // Files (clickable)
+                    const files = (this.codeFiles && this.codeFiles.length) ? this.codeFiles : [{ name: 'index.html', lang: 'html', content: html }];
+                    const entry = files.find(f => (f.name || '').toLowerCase().endsWith('.html')) || files[0];
+
+                    const nodeId = (name) => ('F_' + String(name).replace(/[^a-zA-Z0-9_]/g, '_'));
+                    graph += `UI --> ${nodeId(entry.name)}[${entry.name}];\n`;
+
+                    // Link entry to sibling files (css/js)
+                    files.forEach((f) => {
+                        if (!f || !f.name) return;
+                        if (f.name === entry.name) return;
+                        graph += `${nodeId(entry.name)} --> ${nodeId(f.name)}[${f.name}];\n`;
+                    });
+
+                    // Derived structure hints
+                    const hasCss = files.some(f => (f.name || '').toLowerCase().endsWith('.css')) || html.includes('<style');
+                    const hasJs = files.some(f => (f.name || '').toLowerCase().endsWith('.js')) || html.includes('<script');
+
+                    if (hasJs || hasFetch) graph += `${nodeId(entry.name)} --> Logic[JS Logic];\n`;
                     if (hasPB) graph += "Logic-->DB[(PocketBase)];\n";
-                    if (html.includes('<img')) graph += "Client-->Assets[Images];\n";
+                    if (hasCss) graph += `${nodeId(entry.name)} --> Style[CSS Styles];\n`;
+                    if (html.includes('<img')) graph += `${nodeId(entry.name)} --> Assets[Images];\n`;
                     
-                    graph += "style Client fill:#dbeafe,stroke:#2563EB,stroke-width:2px;\n";
+                    graph += "style UI fill:#dbeafe,stroke:#2563EB,stroke-width:2px;\n";
                     graph += "style DB fill:#f0fdfa,stroke:#0d9488,stroke-width:2px;";
 
                     const container = document.getElementById('mermaid-container');
                     container.innerHTML = '';
                     mermaid.render('mermaid-svg', graph).then(result => {
                         container.innerHTML = result.svg;
+                        // Bind clicks: click file nodes -> switch editor to file
+                        this.bindMermaidFileClicks();
+                    });
+                },
+
+                bindMermaidFileClicks() {
+                    const container = document.getElementById('mermaid-container');
+                    const svg = container ? container.querySelector('svg') : null;
+                    if (!svg) return;
+
+                    const files = (this.codeFiles && this.codeFiles.length) ? this.codeFiles : [];
+                    if (!files.length) return;
+
+                    const nodes = svg.querySelectorAll('g.node');
+                    nodes.forEach((node) => {
+                        const t = Array.from(node.querySelectorAll('text')).map(x => (x.textContent || '').trim()).filter(Boolean).join(' ');
+                        if (!t) return;
+                        const hit = files.find(f => (f.name || '').trim() === t);
+                        if (!hit) return;
+
+                        node.style.cursor = 'pointer';
+                        node.addEventListener('click', () => this.selectFile(hit.name, true), { passive: true });
+                        node.addEventListener('mouseenter', () => { node.style.opacity = '0.9'; }, { passive: true });
+                        node.addEventListener('mouseleave', () => { node.style.opacity = '1'; }, { passive: true });
                     });
                 },
 
