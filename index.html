@@ -247,11 +247,40 @@
 
                 <!-- MODE: PREVIEW -->
                 <div x-show="viewMode === 'preview'" class="h-full flex flex-col relative bg-gray-100 overflow-hidden">
-                    <div class="flex-1 relative min-h-0">
-                        <iframe id="preview-frame" class="w-full h-full border-none bg-white shadow-inner" sandbox="allow-scripts allow-modals allow-same-origin allow-forms"></iframe>
+                    
+                    <!-- Device Switcher -->
+                    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-white/90 backdrop-blur rounded-full shadow-lg border border-gray-200 p-1 gap-1">
+                        <button @click="previewDevice = 'mobile'" :class="previewDevice === 'mobile' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Mobile (375px)">
+                            <i data-lucide="smartphone" class="w-4 h-4"></i>
+                        </button>
+                        <button @click="previewDevice = 'tablet'" :class="previewDevice === 'tablet' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Tablet (768px)">
+                            <i data-lucide="tablet" class="w-4 h-4"></i>
+                        </button>
+                        <button @click="previewDevice = 'desktop'" :class="previewDevice === 'desktop' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Desktop (Full)">
+                            <i data-lucide="monitor" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 relative min-h-0 w-full flex flex-col bg-gray-100 overflow-y-auto overflow-x-hidden" :class="previewDevice === 'desktop' ? 'pt-0' : 'pt-20 pb-10'">
+                        <div class="transition-all duration-300 ease-in-out bg-white shadow-2xl mx-auto relative shrink-0"
+                             :style="{
+                                 width: previewDevice === 'desktop' ? '100%' : (previewDevice === 'mobile' ? '375px' : '768px'),
+                                 height: previewDevice === 'desktop' ? '100%' : (previewDevice === 'mobile' ? '667px' : '1024px'),
+                                 borderRadius: previewDevice === 'desktop' ? '0' : '20px',
+                                 border: previewDevice === 'desktop' ? 'none' : '10px solid #333'
+                             }">
+                            
+                            <!-- Notch for mobile aesthetics -->
+                            <div x-show="previewDevice === 'mobile'" class="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-[#333] rounded-b-xl z-20 pointer-events-none"></div>
+
+                            <iframe id="preview-frame" class="w-full h-full border-none bg-white" 
+                                    :class="previewDevice !== 'desktop' ? 'rounded-[10px]' : ''"
+                                    sandbox="allow-scripts allow-modals allow-same-origin allow-forms"></iframe>
+                        </div>
+                    </div>
                         
-                        <!-- Asset Manager Overlay -->
-                        <div class="absolute top-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
+                    <!-- Asset Manager Overlay -->
+                    <div class="absolute top-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
                         <div class="pointer-events-auto bg-white/90 backdrop-blur p-1 rounded-lg shadow-sm border border-gray-200 self-end">
                             <button @click="showAssets = !showAssets" class="p-2 hover:bg-gray-100 rounded-md text-gray-600 relative">
                                 <i data-lucide="image" class="w-4 h-4"></i>
@@ -549,6 +578,7 @@
                 chatOpen: true,
                 chatInput: '',
                 loadingStep: '',
+                previewDevice: 'desktop', // 'mobile' | 'tablet' | 'desktop'
                 showAssets: false,
                 showAuthModal: false,
                 showSuccessModal: false,
