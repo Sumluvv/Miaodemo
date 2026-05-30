@@ -33,8 +33,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-
+    <script src="i18n.js"></script>
+    <script>MiaoI18n.init();</script>
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -79,10 +79,6 @@
         }
         @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
 
-        /* Mermaid rendering polish */
-        #mermaid-container svg { width: 100%; height: 100%; }
-        #mermaid-container .node rect { rx: 12; ry: 12; }
-        #mermaid-container .node { transition: opacity 150ms ease; }
     </style>
 </head>
 
@@ -103,49 +99,70 @@
         
         <!-- Projects List & Nav -->
         <div class="flex-1 overflow-y-auto p-3 space-y-1">
-            <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider">My Projects</div>
+            <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider" x-text="t('myProjects')"></div>
             
             <template x-for="proj in myProjects" :key="proj.id">
                 <div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer text-sm text-gray-600 transition-colors"
                      @click="loadProject(proj.id)" :class="activeProjectId === proj.id ? 'bg-blue-50 text-brand-600' : ''">
-                    <span class="truncate max-w-[140px]" x-text="proj.title || 'Untitled'"></span>
+                    <span class="truncate max-w-[140px]" x-text="proj.title || t('untitled')"></span>
                     <!-- Delete Button: Blue circle with white X, visible on hover -->
                     <button @click.stop="deleteProject(proj.id)" 
                             class="opacity-0 group-hover:opacity-100 p-0.5 bg-blue-100 hover:bg-red-500 text-blue-600 hover:text-white rounded-full transition-all duration-200 shrink-0 transform hover:scale-110" 
-                            title="Delete Project">
+                            :title="t('deleteProjectTitle')">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                     </button>
                 </div>
             </template>
             
-            <div x-show="myProjects.length === 0" class="text-xs text-center text-gray-400 py-4">No history yet</div>
+            <div x-show="myProjects.length === 0" class="text-xs text-center text-gray-400 py-4" x-text="t('noHistory')"></div>
 
             <!-- Community Link (Moved Here) -->
             <div class="pt-4 mt-2 border-t border-gray-100">
-                <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider">Explore</div>
+                <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider" x-text="t('explore')"></div>
                 <a href="view.html" target="_blank" class="flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
                     <i data-lucide="globe" class="w-4 h-4 text-brand-500"></i>
-                    Community Plaza
+                    <span x-text="t('communityPlaza')"></span>
                 </a>
             </div>
         </div>
 
-        <!-- User Profile -->
+        <!-- User Profile + Language -->
         <div class="p-4 border-t border-gray-100 bg-gray-50/50">
-            <template x-if="user">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center text-xs font-bold" x-text="user.email[0].toUpperCase()"></div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium truncate" x-text="user.email"></p>
-                        <button @click="logout()" class="text-[10px] text-gray-500 hover:text-gray-800">Sign Out</button>
+            <div class="flex items-center gap-2">
+                <template x-if="user">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <div class="w-8 h-8 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0" x-text="user.email[0].toUpperCase()"></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium truncate" x-text="user.email"></p>
+                            <button @click="logout()" class="text-[10px] text-gray-500 hover:text-gray-800" x-text="t('signOut')"></button>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!user">
+                    <button @click="showAuthModal = true" class="flex-1 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 shadow-sm transition-all" x-text="t('loginRegister')"></button>
+                </template>
+                <div class="relative shrink-0">
+                    <button type="button"
+                            @click="langMenuOpen = !langMenuOpen"
+                            class="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            :title="t('language')"
+                            :aria-label="t('language')">
+                        <i data-lucide="languages" class="w-4 h-4"></i>
+                    </button>
+                    <div x-cloak x-show="langMenuOpen" @click.away="langMenuOpen = false"
+                         class="absolute bottom-full right-0 mb-1.5 w-[9.5rem] max-h-64 overflow-y-auto bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                        <template x-for="opt in langOptions" :key="opt.code">
+                            <button type="button"
+                                    @click="setLanguage(opt.code); langMenuOpen = false"
+                                    class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between gap-2"
+                                    :class="lang === opt.code ? 'text-brand-600 font-semibold bg-brand-50/50' : 'text-gray-700'">
+                                <span x-text="opt.label" class="truncate"></span>
+                                <span x-show="lang === opt.code" class="text-brand-600 shrink-0">✓</span>
+                            </button>
+                        </template>
                     </div>
                 </div>
-            </template>
-            <template x-if="!user">
-                <button @click="showAuthModal = true" class="w-full py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50 shadow-sm transition-all">
-                    Login / Register
-                </button>
-            </template>
+            </div>
         </div>
     </aside>
 
@@ -157,10 +174,10 @@
             <div class="flex items-center gap-4">
                 <div class="flex bg-gray-100 p-1 rounded-lg">
                     <button @click="viewMode = 'editor'" :class="viewMode === 'editor' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2">
-                        <i data-lucide="code-2" class="w-3.5 h-3.5"></i> Editor
+                        <i data-lucide="code-2" class="w-3.5 h-3.5"></i> <span x-text="t('editor')"></span>
                     </button>
                     <button @click="analyzeAndPreview()" :class="viewMode === 'preview' ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500 hover:text-gray-700'" class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2">
-                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Preview
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i> <span x-text="t('preview')"></span>
                     </button>
                 </div>
 
@@ -168,14 +185,14 @@
                 <div class="relative" x-data="{ open: false }">
                     <button @click="open = !open" :disabled="history.length === 0" class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 disabled:opacity-50 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors">
                         <i data-lucide="history" class="w-3.5 h-3.5"></i>
-                        <span>History</span>
+                        <span x-text="t('history')"></span>
                         <span class="bg-gray-200 text-gray-600 px-1.5 rounded-full text-[10px]" x-text="history.length"></span>
                     </button>
                     <div x-show="open" @click.away="open = false" class="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-30 animate-in fade-in zoom-in-95 origin-top-left">
                         <template x-for="(ver, idx) in history.slice().reverse()" :key="idx">
                             <button @click="restoreVersion(history.length - 1 - idx); open = false" class="w-full text-left px-4 py-2 text-xs hover:bg-gray-50 flex items-center justify-between group">
                                 <span x-text="new Date(ver.timestamp).toLocaleTimeString()"></span>
-                                <span class="text-brand-600 opacity-0 group-hover:opacity-100">Restore</span>
+                                <span class="text-brand-600 opacity-0 group-hover:opacity-100" x-text="t('restore')"></span>
                             </button>
                         </template>
                     </div>
@@ -184,19 +201,9 @@
 
             <!-- Deployment Controls -->
             <div class="flex items-center gap-3">
-                <div class="relative group">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" x-model="isPWA" class="rounded text-brand-600 focus:ring-0 border-gray-300 w-3.5 h-3.5">
-                        <span class="text-xs text-gray-600 font-medium">PWA Ready</span>
-                    </label>
-                    <div class="absolute top-full right-0 mt-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                        Automatically injects manifest.json for "Add to Home Screen" support.
-                    </div>
-                </div>
-                
                 <button @click="handleDeploy()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg shadow-sm shadow-brand-200 text-xs font-semibold flex items-center gap-2 transition-all active:scale-95">
                     <i data-lucide="rocket" class="w-3.5 h-3.5"></i>
-                    Deploy Now
+                    <span x-text="t('deployNow')"></span>
                 </button>
             </div>
         </header>
@@ -214,7 +221,7 @@
                 <div x-show="viewMode === 'editor'" class="h-full p-4 md:p-8 flex flex-col">
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden relative group">
                         <div class="absolute top-0 right-0 p-2 bg-white/90 backdrop-blur z-10 border-b border-l border-gray-100 rounded-bl-xl text-[10px] text-gray-400 font-mono">
-                            HTML/Tailwind/JS Supported
+                            <span x-text="t('htmlSupported')"></span>
                         </div>
                         <!-- Multi-file tabs (when AI returns multiple files) -->
                         <div class="px-4 py-2 border-b border-gray-100 bg-white/70 backdrop-blur-sm flex items-center gap-2 overflow-x-auto"
@@ -231,7 +238,7 @@
                         </div>
                         <textarea 
                             x-model="currentCode" 
-                            placeholder="<!-- Paste your Gemini/ChatGPT code here -->" 
+                            :placeholder="t('codePlaceholder')" 
                             class="w-full h-full p-6 font-mono text-sm resize-none focus:outline-none text-gray-700 leading-relaxed bg-transparent selection:bg-brand-100 selection:text-brand-900"
                             spellcheck="false"></textarea>
                     </div>
@@ -239,8 +246,8 @@
                     <div class="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-3 shrink-0">
                         <i data-lucide="sparkles" class="w-4 h-4 text-brand-500 mt-0.5"></i>
                         <div class="flex-1">
-                            <h4 class="text-xs font-semibold text-brand-800 mb-1">AI Assistant Ready</h4>
-                            <p class="text-xs text-brand-600/80">Paste your generated code above, enter a description in the chat, and click "Preview" to let AI analyze architecture and assets.</p>
+                            <h4 class="text-xs font-semibold text-brand-800 mb-1" x-text="t('aiReady')"></h4>
+                            <p class="text-xs text-brand-600/80" x-text="t('aiReadyHint')"></p>
                         </div>
                     </div>
                 </div>
@@ -250,13 +257,13 @@
                     
                     <!-- Device Switcher -->
                     <div class="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex bg-white/90 backdrop-blur rounded-full shadow-lg border border-gray-200 p-1 gap-1">
-                        <button @click="previewDevice = 'mobile'" :class="previewDevice === 'mobile' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Mobile (375px)">
+                        <button @click="previewDevice = 'mobile'" :class="previewDevice === 'mobile' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" :title="t('mobile')">
                             <i data-lucide="smartphone" class="w-4 h-4"></i>
                         </button>
-                        <button @click="previewDevice = 'tablet'" :class="previewDevice === 'tablet' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Tablet (768px)">
+                        <button @click="previewDevice = 'tablet'" :class="previewDevice === 'tablet' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" :title="t('tablet')">
                             <i data-lucide="tablet" class="w-4 h-4"></i>
                         </button>
-                        <button @click="previewDevice = 'desktop'" :class="previewDevice === 'desktop' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" title="Desktop (Full)">
+                        <button @click="previewDevice = 'desktop'" :class="previewDevice === 'desktop' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-gray-600'" class="p-2 rounded-full transition-colors" :title="t('desktop')">
                             <i data-lucide="monitor" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -289,7 +296,7 @@
                         </div>
                         
                         <div x-show="showAssets" x-transition class="pointer-events-auto bg-white/90 backdrop-blur w-64 rounded-xl shadow-lg border border-gray-200 p-3 max-h-[300px] overflow-y-auto">
-                            <h4 class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Detected Assets</h4>
+                            <h4 class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide" x-text="t('detectedAssets')"></h4>
                             <template x-for="(img, idx) in assets" :key="idx">
                                 <div class="mb-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
                                     <div class="flex items-center gap-2 mb-2">
@@ -301,68 +308,12 @@
                                         </div>
                                     </div>
                                     <label class="block w-full text-center py-1 bg-white border border-gray-200 rounded text-[10px] cursor-pointer hover:bg-gray-50 text-gray-600 transition-colors">
-                                        Replace
+                                        <span x-text="t('replace')"></span>
                                         <input type="file" class="hidden" accept="image/*" @change="uploadAsset($event, img.src)">
                                     </label>
                                 </div>
                             </template>
-                            <div x-show="assets.length === 0" class="text-xs text-gray-400 text-center py-2">No images found</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- LOWER PANEL: Architecture Viz (Resizable) -->
-            <div class="bg-white border-t border-gray-200 flex flex-col transition-all ease-out duration-200 relative z-20 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
-                 :style="{ height: isArchCollapsed ? '40px' : archHeight + 'px' }">
-                
-                <!-- Drag Handle -->
-                <div class="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-30 flex items-center justify-center group"
-                     @mousedown.prevent="startResize($event)">
-                    <div class="h-1 w-12 bg-gray-300 rounded-full group-hover:bg-brand-500 transition-colors"></div>
-                </div>
-
-                    <div class="px-4 h-10 flex items-center justify-between border-b border-gray-50 shrink-0 bg-white select-none group/header hover:bg-gray-50/50 transition-colors" 
-                         @click="isArchCollapsed = !isArchCollapsed"
-                         title="Double click to toggle">
-                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                            <i data-lucide="network" class="w-3.5 h-3.5 text-brand-500"></i>
-                            Architecture Map
-                        </span>
-                        
-                        <div class="flex items-center gap-2">
-                            <button @click.stop="generateMermaid()" 
-                                    class="text-[10px] font-medium text-brand-600 px-2 py-1 rounded hover:bg-brand-50 transition-colors" 
-                                    x-show="!isArchCollapsed"
-                                    title="Refresh Diagram">
-                                Refresh
-                            </button>
-                            
-                            <div class="w-px h-3 bg-gray-200 mx-1"></div>
-                            
-                            <!-- Collapse button (explicit V icon on the far right) -->
-                            <button
-                                class="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                @click.stop="isArchCollapsed = !isArchCollapsed"
-                                :title="isArchCollapsed ? 'Expand Panel' : 'Collapse Panel'">
-                                <!-- Inline chevron to avoid lucide re-render issues -->
-                                <!-- Direction rule: expanded -> down (collapse), collapsed -> up (expand) -->
-                                <svg class="w-4 h-4 transition-transform duration-200" :class="isArchCollapsed ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.936a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.24-4.5a.75.75 0 0 1 .02-1.06z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                
-                <div class="flex-1 overflow-auto p-4 bg-slate-50/50 relative" x-show="!isArchCollapsed">
-                    <!-- Keep only one frame (outer) to avoid duplicated title; hint sits at bottom -->
-                    <div class="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full">
-                        <div class="absolute bottom-2 left-3 right-3 text-[10px] text-gray-400 flex items-center justify-between pointer-events-none">
-                            <span>提示：点击图中的文件节点可切换上方编辑器</span>
-                            <span x-text="codeFiles.length ? (codeFiles.length + ' file(s)') : 'single file'"></span>
-                        </div>
-                        <div class="h-full overflow-auto p-3 pb-8">
-                            <div id="mermaid-container" class="w-full h-full flex justify-center items-center font-mono text-sm opacity-90"></div>
+                            <div x-show="assets.length === 0" class="text-xs text-gray-400 text-center py-2" x-text="t('noImages')"></div>
                         </div>
                     </div>
                 </div>
@@ -376,7 +327,7 @@
         
         <div class="border-b border-gray-100 bg-white">
             <div class="p-4 flex items-center justify-between">
-                <span class="font-semibold text-sm">AI Architect</span>
+                <span class="font-semibold text-sm" x-text="t('aiArchitect')"></span>
                 <span x-show="loadingStep" x-text="loadingStep" x-transition.opacity class="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full animate-pulse"></span>
             </div>
         </div>
@@ -400,7 +351,7 @@
                 <textarea 
                     x-model="chatInput" 
                     @keydown.enter.prevent="sendMessage()"
-                    placeholder="Describe changes (e.g. 'Make the button blue')..." 
+                    :placeholder="t('chatPlaceholder')" 
                     class="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-brand-300 focus:bg-white transition-all resize-none shadow-inner"
                     rows="2"></textarea>
                 <button 
@@ -418,14 +369,14 @@
     <div x-cloak x-show="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" @click="showAuthModal = false"></div>
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative z-10 animate-in zoom-in-95">
-            <h3 class="text-2xl font-bold text-gray-900 mb-2" x-text="authMode === 'login' ? 'Welcome Back' : 'Create Account'"></h3>
-            <p class="text-sm text-gray-500 mb-6" x-text="authMode === 'login' ? 'Sign in to save projects and upload assets.' : 'Join the community to share your work.'"></p>
+            <h3 class="text-2xl font-bold text-gray-900 mb-2" x-text="authMode === 'login' ? t('welcomeBack') : t('createAccount')"></h3>
+            <p class="text-sm text-gray-500 mb-6" x-text="authMode === 'login' ? t('signInHint') : t('joinHint')"></p>
             
             <form @submit.prevent="handleAuth()" class="space-y-4">
-                <input type="email" x-model="authForm.email" placeholder="Email" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all">
+                <input type="email" x-model="authForm.email" :placeholder="t('email')" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all">
                 
                 <div class="relative">
-                    <input :type="showPassword ? 'text' : 'password'" x-model="authForm.password" placeholder="Password" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all">
+                    <input :type="showPassword ? 'text' : 'password'" x-model="authForm.password" :placeholder="t('password')" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all">
                     <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none">
                         <!-- Eye Icon -->
                         <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -437,23 +388,23 @@
                 <template x-if="authMode === 'register'">
                     <div>
                         <div class="relative">
-                            <input :type="showPasswordConfirm ? 'text' : 'password'" x-model="authForm.passwordConfirm" placeholder="Confirm Password" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all"
+                            <input :type="showPasswordConfirm ? 'text' : 'password'" x-model="authForm.passwordConfirm" :placeholder="t('confirmPassword')" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all"
                                    :class="{'border-red-300 focus:border-red-500 focus:ring-red-200': authForm.passwordConfirm && authForm.password !== authForm.passwordConfirm}">
                             <button type="button" @click="showPasswordConfirm = !showPasswordConfirm" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none">
                                 <svg x-show="!showPasswordConfirm" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                 <svg x-show="showPasswordConfirm" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                             </button>
                         </div>
-                        <p x-show="authForm.passwordConfirm && authForm.password !== authForm.passwordConfirm" class="text-[10px] text-red-500 mt-1 pl-1">Passwords do not match</p>
+                        <p x-show="authForm.passwordConfirm && authForm.password !== authForm.passwordConfirm" class="text-[10px] text-red-500 mt-1 pl-1" x-text="t('passwordsNoMatch')"></p>
                     </div>
                 </template>
                 
-                <button type="submit" class="w-full py-3 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 shadow-lg shadow-brand-200 transition-all" x-text="authMode === 'login' ? 'Sign In' : 'Sign Up'"></button>
+                <button type="submit" class="w-full py-3 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 shadow-lg shadow-brand-200 transition-all" x-text="authMode === 'login' ? t('signIn') : t('signUp')"></button>
             </form>
             
             <div class="mt-4 text-center">
                 <button @click="toggleAuthMode()" class="text-xs text-gray-500 hover:text-brand-600 font-medium transition-colors">
-                    <span x-text="authMode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Sign in'"></span>
+                    <span x-text="authMode === 'login' ? t('needAccount') : t('haveAccount')"></span>
                 </button>
             </div>
 
@@ -468,12 +419,10 @@
             <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <i data-lucide="mail" class="w-8 h-8"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Check Your Email</h3>
-            <p class="text-sm text-gray-500 mb-6">We've sent a verification link to your inbox. Please activate your account to sign in.</p>
+            <h3 class="text-xl font-bold text-gray-900 mb-2" x-text="t('checkEmail')"></h3>
+            <p class="text-sm text-gray-500 mb-6" x-text="t('checkEmailBody')"></p>
             
-            <button @click="showVerifyModal = false; authMode = 'login'; showAuthModal = true" class="w-full py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 shadow-lg shadow-brand-200">
-                I've Activated, Sign In
-            </button>
+            <button @click="showVerifyModal = false; authMode = 'login'; showAuthModal = true" class="w-full py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 shadow-lg shadow-brand-200" x-text="t('activatedSignIn')"></button>
         </div>
     </div>
 
@@ -483,8 +432,8 @@
             <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <i data-lucide="check" class="w-8 h-8"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Deployed Successfully!</h3>
-            <p class="text-sm text-gray-500 mb-6">Your demo is live on the cloud.</p>
+            <h3 class="text-xl font-bold text-gray-900 mb-2" x-text="t('deployedSuccess')"></h3>
+            <p class="text-sm text-gray-500 mb-6" x-text="t('demoLive')"></p>
             
             <div class="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100 flex flex-col items-center">
                 <div id="qrcode" class="bg-white p-2 rounded-lg shadow-sm mb-4"></div>
@@ -493,8 +442,8 @@
                 <!-- Visibility Toggle -->
                 <div class="w-full mt-4 flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200 shadow-sm" x-show="activeProjectId">
                     <div class="flex flex-col text-left">
-                        <span class="text-xs font-semibold text-gray-700">Public Listing</span>
-                        <span class="text-[10px] text-gray-400">Visible in Community Plaza</span>
+                        <span class="text-xs font-semibold text-gray-700" x-text="t('publicListing')"></span>
+                        <span class="text-[10px] text-gray-400" x-text="t('visibleInPlaza')"></span>
                     </div>
                     <button @click="togglePublic()" 
                             :class="isProjectPublic ? 'bg-brand-500' : 'bg-gray-200'" 
@@ -505,8 +454,8 @@
             </div>
             
             <div class="flex gap-3">
-                <a :href="deployUrl" target="_blank" class="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 shadow-lg shadow-brand-200">Open</a>
-                <button @click="showSuccessModal = false" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200">Close</button>
+                <a :href="deployUrl" target="_blank" class="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 shadow-lg shadow-brand-200" x-text="t('open')"></a>
+                <button @click="showSuccessModal = false" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200" x-text="t('close')"></button>
             </div>
         </div>
     </div>
@@ -518,12 +467,12 @@
             <div class="w-14 h-14 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <i data-lucide="alert-triangle" class="w-7 h-7"></i>
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Project?</h3>
-            <p class="text-sm text-gray-500 mb-6 px-2">This action is permanent and cannot be undone.</p>
+            <h3 class="text-lg font-bold text-gray-900 mb-2" x-text="t('deleteProject')"></h3>
+            <p class="text-sm text-gray-500 mb-6 px-2" x-text="t('deletePermanent')"></p>
             
             <div class="flex gap-3">
-                <button @click="showDeleteModal = false" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">Cancel</button>
-                <button @click="confirmDelete()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 shadow-lg shadow-red-200 transition-colors">Delete</button>
+                <button @click="showDeleteModal = false" class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors" x-text="t('cancel')"></button>
+                <button @click="confirmDelete()" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 shadow-lg shadow-red-200 transition-colors" x-text="t('delete')"></button>
             </div>
         </div>
     </div>
@@ -548,13 +497,14 @@
 
     <script>
         const CONFIG = {
-            DIFY_API_BASE: "https://dify-api.miaodemo.com/v1", // Replace with real if needed
-            DIFY_API_KEY: "app-JQ0zLz0TCxrFkjX2PF5PVtUG", 
+            // 生产推荐：部署 proxy/ 后填写，并清空 DIFY_API_KEY
+            DIFY_PROXY_URL: "",
+            DIFY_API_BASE: "https://dify-api.miaodemo.com/v1",
+            DIFY_API_KEY: "app-JQ0zLz0TCxrFkjX2PF5PVtUG",
             POCKETBASE_URL: "https://db.miaodemo.com"
         };
 
         const pb = new PocketBase(CONFIG.POCKETBASE_URL);
-        mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
 
         document.addEventListener('alpine:init', () => {
             Alpine.data('app', () => ({
@@ -565,13 +515,27 @@
                 codeFiles: [], // [{ name, lang, content }]
                 activeFileName: '',
                 mainHtmlCode: '', // used for preview/deploy when multiple files exist
-                mermaidClickableFiles: [], // [{ name }]
                 projectDesc: '',
                 chatHistory: [],
                 history: [], // [{ timestamp: number, code: string }]
                 assets: [], 
-                isPWA: false,
                 myProjects: [],
+
+                lang: MiaoI18n.getLang(),
+                langMenuOpen: false,
+                get langOptions() { return MiaoI18n.getOptions(); },
+
+                t(key, params) {
+                    void this.lang;
+                    return MiaoI18n.t(key, params);
+                },
+
+                setLanguage(code) {
+                    MiaoI18n.setLang(code);
+                    this.lang = code;
+                    document.title = MiaoI18n.t('pageTitleIndex');
+                    this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+                },
                 
                 // UI States
                 sidebarOpen: true,
@@ -593,16 +557,14 @@
                 deployUrl: '',
                 toast: { show: false, message: '', type: 'info' },
                 
-                // Architecture Panel States
-                isArchCollapsed: true, // default collapsed for cleaner UI
-                archHeight: 300, // px
-                isDragging: false,
                 isSwitchingFile: false,
 
                 activeProjectId: null, // Track currently open project
                 isProjectPublic: false, // UI state for visibility toggle
 
                 async init() {
+                    this.lang = MiaoI18n.getLang();
+                    document.title = MiaoI18n.t('pageTitleIndex');
                     lucide.createIcons();
                     
                     // Auth Check
@@ -615,7 +577,7 @@
                     const pending = localStorage.getItem('pending_code');
                     if (pending && this.user) {
                         this.currentCode = pending;
-                        this.showToast('Restored unsaved work', 'info');
+                        this.showToast(this.t('toastRestored'), 'info');
                         localStorage.removeItem('pending_code');
                     }
 
@@ -623,16 +585,16 @@
                     const params = new URLSearchParams(window.location.search);
                     const remixId = params.get('remix_id');
                     if (remixId) {
-                        this.loadingStep = 'Loading Remix...';
+                        this.loadingStep = this.t('loadingRemix');
                         try {
                             const record = await pb.collection('projects').getOne(remixId);
                             this.currentCode = record.code_html || ''; 
                             this.pushHistory();
                             this.viewMode = 'preview';
-                            this.showToast(`Remixing "${record.title}"`, 'success');
+                            this.showToast(this.t('toastRemixing', { title: record.title }), 'success');
                         } catch (e) {
                             console.error(e);
-                            this.showToast('无法加载该项目（可能为私密作品或不存在）', 'error');
+                            this.showToast(this.t('toastRemixFail'), 'error');
                         } finally {
                             this.loadingStep = '';
                         }
@@ -663,10 +625,7 @@
                         }
                     });
                     this.$watch('viewMode', (val) => {
-                        if (val === 'preview') {
-                            this.updateIframe();
-                            this.generateMermaid();
-                        }
+                        if (val === 'preview') this.updateIframe();
                     });
                 },
 
@@ -683,7 +642,7 @@
                     const query = this.chatInput;
                     this.chatHistory.push({ role: 'user', content: query, id: Date.now() });
                     this.chatInput = '';
-                    this.loadingStep = 'Analyzing Request...';
+                    this.loadingStep = this.t('loadingAnalyzing');
                     this.scrollToBottom();
 
                     // If code is empty and description provided, treat as generation
@@ -706,12 +665,15 @@
                             user: (this.user && this.user.id) ? this.user.id : "guest_user_" + Math.random().toString(36).substring(7)
                         };
 
-                        const response = await fetch(`${CONFIG.DIFY_API_BASE}${endpoint}`, {
+                        const apiBase = (CONFIG.DIFY_PROXY_URL || CONFIG.DIFY_API_BASE).replace(/\/$/, '');
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (!CONFIG.DIFY_PROXY_URL && CONFIG.DIFY_API_KEY) {
+                            headers['Authorization'] = `Bearer ${CONFIG.DIFY_API_KEY}`;
+                        }
+
+                        const response = await fetch(`${apiBase}${endpoint}`, {
                             method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${CONFIG.DIFY_API_KEY}`,
-                                'Content-Type': 'application/json'
-                            },
+                            headers,
                             body: JSON.stringify(payload)
                         });
 
@@ -905,7 +867,7 @@
                         this.activeFileName = main.name;
                         newCode = main.content; // keep editor/preview aligned on a sensible entry file
                     } else {
-                        // Single-file mode: keep a virtual "index.html" so the architecture diagram can still be clickable
+                        // Single-file mode: keep a virtual "index.html" for multi-tab consistency
                         if (newCode) {
                             this.codeFiles = [{ name: 'index.html', lang: 'html', content: newCode }];
                             this.activeFileName = 'index.html';
@@ -925,11 +887,7 @@
                         this.viewMode = 'preview';
                         // 移除 Toast: this.showToast('Code Updated & Rendered', 'success');
                         
-                        // 刷新 mermaid 和 iframe
-                        this.$nextTick(() => {
-                            this.updateIframe();
-                            this.generateMermaid();
-                        });
+                        this.$nextTick(() => this.updateIframe());
                     } else {
                         // 如果没提取到代码，可能 AI 只是在回复文本，保持在当前页面
                         console.log("No code block detected in AI response");
@@ -938,7 +896,7 @@
 
                 async analyzeAndPreview() {
                     if (!this.currentCode.trim()) {
-                        this.showToast('Paste code first!', 'error');
+                        this.showToast(this.t('toastPasteFirst'), 'error');
                         return;
                     }
 
@@ -950,7 +908,7 @@
 
                     // 2. 如果是 React，自动触发 AI 转译流程
                     if (isReact) {
-                        this.loadingStep = 'Converting React to HTML...';
+                        this.loadingStep = this.t('loadingConverting');
                         this.scrollToBottom();
                         
                         // 构造一个隐形的指令发送给 Dify
@@ -969,11 +927,10 @@
                     }
 
                     // 3. 如果已经是 HTML，直接预览
-                    this.loadingStep = 'Analyzing Architecture...';
+                    this.loadingStep = this.t('loadingPreview');
                     this.viewMode = 'preview';
-                    this.generateMermaid();
-                    // Simulate analysis delay
-                    setTimeout(() => this.loadingStep = '', 800);
+                    this.updateIframe();
+                    setTimeout(() => this.loadingStep = '', 400);
                 },
 
                 updateIframe() {
@@ -993,22 +950,6 @@
                         <\/script>
                     `;
                     
-                    // Inject PWA Manifest if needed (Data URI)
-                    if (this.isPWA) {
-                        const manifest = {
-                            name: "MiaoDemo App",
-                            short_name: "MiaoDemo",
-                            start_url: ".",
-                            display: "standalone",
-                            background_color: "#ffffff",
-                            theme_color: "#2563EB",
-                            icons: [{ src: "https://via.placeholder.com/192", sizes: "192x192", type: "image/png" }]
-                        };
-                        const manifestBlob = btoa(JSON.stringify(manifest));
-                        const manifestLink = `<link rel="manifest" href="data:application/json;base64,${manifestBlob}">`;
-                        finalCode = finalCode.replace('<head>', `<head>${manifestLink}`);
-                    }
-
                     finalCode = finalCode.replace('</body>', `${selectionScript}</body>`);
                     iframe.srcdoc = finalCode;
                 },
@@ -1030,30 +971,7 @@
                     }
                 },
 
-                // --- Resize Logic ---
-                startResize(e) {
-                    const startY = e.clientY;
-                    const startH = this.archHeight;
-                    
-                    const doDrag = (e) => {
-                        const delta = startY - e.clientY;
-                        const newH = startH + delta;
-                        if (newH > 100 && newH < window.innerHeight * 0.8) {
-                            this.archHeight = newH;
-                        }
-                    };
-                    
-                    const stopDrag = () => {
-                        this.isDragging = false;
-                        document.removeEventListener('mousemove', doDrag);
-                        document.removeEventListener('mouseup', stopDrag);
-                    };
-                    
-                    document.addEventListener('mousemove', doDrag);
-                    document.addEventListener('mouseup', stopDrag);
-                },
-
-                // --- Assets & Architecture ---
+                // --- Assets ---
 
                 scanAssets() {
                     // 支持单引号和双引号，且忽略大小写
@@ -1081,7 +999,7 @@
                         return;
                     }
 
-                    this.showToast('Uploading...', 'info');
+                    this.showToast(this.t('loadingUploading'), 'info');
                     
                     try {
                         const formData = new FormData();
@@ -1098,130 +1016,11 @@
                         this.currentCode = this.currentCode.replace(new RegExp(oldSrc, 'g'), fileUrl);
                         this.pushHistory();
                         this.updateIframe();
-                        this.showToast('Asset Replaced', 'success');
+                        this.showToast(this.t('toastAssetReplaced'), 'success');
                     } catch (e) {
                         console.error(e);
-                        this.showToast('Upload Failed', 'error');
+                        this.showToast(this.t('toastUploadFail'), 'error');
                     }
-                },
-
-                generateMermaid() {
-                    // Goal: 给“多文件项目”一个可点击的架构指引（点击文件节点切换编辑器）
-                    // 修复点：保证 Mermaid 语法始终合法；渲染失败也要给出提示，避免“清空后消失”
-                    const container = document.getElementById('mermaid-container');
-                    if (!container) return;
-
-                    const html = this.mainHtmlCode || this.currentCode || '';
-                    const hasPB = html.includes('PocketBase') || html.includes('pocketbase') || html.includes('db.miaodemo.com');
-                    const hasFetch = html.includes('fetch(');
-
-                    const files = (this.codeFiles && this.codeFiles.length)
-                        ? this.codeFiles
-                        : [{ name: 'index.html', lang: 'html', content: html }];
-                    const entry = files.find(f => (f.name || '').toLowerCase().endsWith('.html')) || files[0];
-
-                    const nodeId = (name) => ('F_' + String(name).replace(/[^a-zA-Z0-9_]/g, '_'));
-                    const fileNodeMap = {}; // nodeId -> filename
-
-                    const entryId = nodeId(entry.name);
-                    files.forEach((f) => {
-                        if (!f || !f.name) return;
-                        fileNodeMap[nodeId(f.name)] = f.name;
-                    });
-
-                    const hasCss = files.some(f => (f.name || '').toLowerCase().endsWith('.css')) || html.includes('<style');
-                    const hasJs = files.some(f => (f.name || '').toLowerCase().endsWith('.js')) || html.includes('<script');
-                    const hasImg = html.includes('<img');
-
-                    const escapeText = (s) => String(s == null ? '' : s).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-
-                    // Build a valid Mermaid graph (no bare node ids inside subgraph)
-                    let graph = "graph LR;\n";
-                    graph += "User((User)) --> UI[Browser UI];\n";
-
-                    graph += "subgraph Files\n";
-                    graph += `UI --> ${entryId}[${entry.name}];\n`;
-                    files.forEach((f) => {
-                        if (!f || !f.name) return;
-                        const fid = nodeId(f.name);
-                        graph += `${fid}[${f.name}];\n`;
-                    });
-                    graph += "end\n";
-
-                    files.forEach((f) => {
-                        if (!f || !f.name) return;
-                        if (f.name === entry.name) return;
-                        graph += `${entryId} --> ${nodeId(f.name)};\n`;
-                    });
-
-                    graph += "subgraph Runtime\n";
-                    if (hasJs || hasFetch) graph += "Logic[JS Logic];\n";
-                    if (hasCss) graph += "Style[CSS Styles];\n";
-                    if (hasImg) graph += "Assets[Images];\n";
-                    graph += "end\n";
-
-                    if (hasJs || hasFetch) graph += `${entryId} --> Logic;\n`;
-                    if (hasCss) graph += `${entryId} --> Style;\n`;
-                    if (hasImg) graph += `${entryId} --> Assets;\n`;
-                    if (hasPB) graph += "Logic --> DB[(PocketBase)];\n";
-
-                    // Styling
-                    graph += "classDef file fill:#fff7ed,stroke:#f59e0b,stroke-width:1px,color:#7c2d12;\n";
-                    graph += "classDef sys fill:#eff6ff,stroke:#2563EB,stroke-width:2px,color:#1e3a8a;\n";
-                    graph += "classDef runtime fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#334155;\n";
-                    graph += "classDef backend fill:#ecfeff,stroke:#0d9488,stroke-width:2px,color:#0f766e;\n";
-                    graph += "class UI sys;\n";
-                    graph += `class ${Object.keys(fileNodeMap).join(',')} file;\n`;
-                    if (hasJs || hasFetch) graph += "class Logic runtime;\n";
-                    if (hasCss) graph += "class Style runtime;\n";
-                    if (hasImg) graph += "class Assets runtime;\n";
-                    if (hasPB) graph += "class DB backend;\n";
-
-                    // Render after layout settles (fix disappearing on view switch)
-                    container.innerHTML = '<div class="text-xs text-gray-400 font-mono">Rendering diagram…</div>';
-                    const renderId = `mermaid-svg-${Date.now()}`;
-                    this.$nextTick(() => {
-                        requestAnimationFrame(() => {
-                            mermaid.render(renderId, graph)
-                                .then((result) => {
-                                    container.innerHTML = result.svg;
-                                    this.bindMermaidFileClicks(fileNodeMap);
-                                })
-                                .catch((err) => {
-                                    const msg = escapeText(err && (err.message || String(err)));
-                                    container.innerHTML = `<div class="text-xs text-red-600 font-mono whitespace-pre-wrap">Mermaid render failed:\n${msg}</div>`;
-                                });
-                        });
-                    });
-                },
-
-                bindMermaidFileClicks(fileNodeMap) {
-                    const container = document.getElementById('mermaid-container');
-                    const svg = container ? container.querySelector('svg') : null;
-                    if (!svg) return;
-
-                    const map = fileNodeMap && typeof fileNodeMap === 'object' ? fileNodeMap : {};
-                    const keys = Object.keys(map);
-                    if (!keys.length) return;
-
-                    // Mermaid renders node groups with ids like "flowchart-F_xxx-0"
-                    const nodes = svg.querySelectorAll('g.node[id]');
-                    nodes.forEach((node) => {
-                        const gid = node.getAttribute('id') || '';
-                        const key = keys.find(k => gid.indexOf(k) !== -1);
-                        if (!key) return;
-                        const filename = map[key];
-                        if (!filename) return;
-
-                        node.style.cursor = 'pointer';
-                        node.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            this.selectFile(filename, true);
-                        });
-                        node.addEventListener('mouseenter', () => { node.style.opacity = '0.92'; }, { passive: true });
-                        node.addEventListener('mouseleave', () => { node.style.opacity = '1'; }, { passive: true });
-                    });
                 },
 
                 // --- History ---
@@ -1234,7 +1033,7 @@
                     if (this.history[index]) {
                         this.currentCode = this.history[index].code;
                         this.viewMode = 'preview';
-                        this.showToast('Version Restored', 'info');
+                        this.showToast(this.t('toastVersionRestored'), 'info');
                     }
                 },
 
@@ -1264,12 +1063,12 @@
 
                 async register() {
                     if (this.authForm.password !== this.authForm.passwordConfirm) {
-                        this.authError = "Passwords do not match.";
+                        this.authError = this.t('toastPasswordMismatch');
                         return;
                     }
                     // Password complexity: 8+ chars, uppercase, lowercase, number
                     if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/.test(this.authForm.password)) {
-                        this.authError = "Password must be 8+ chars with A-Z, a-z, and 0-9.";
+                        this.authError = this.t('toastPasswordRules');
                         return;
                     }
                     
@@ -1290,7 +1089,7 @@
 
                     } catch (e) {
                         console.error(e);
-                        this.authError = e.data?.message || e.message || "Registration failed. Email might be taken.";
+                        this.authError = e.data?.message || e.message || this.t('toastRegisterFail');
                     }
                 },
 
@@ -1300,7 +1099,7 @@
                         await pb.collection('users').authWithPassword(this.authForm.email, this.authForm.password);
                         this.user = pb.authStore.model;
                         this.showAuthModal = false;
-                        this.showToast(`Welcome, ${this.user.username || this.user.email}`, 'success');
+                        this.showToast(this.t('toastWelcome', { name: this.user.username || this.user.email }), 'success');
                         
                         // If pending deploy
                         if (localStorage.getItem('pending_code')) {
@@ -1311,7 +1110,7 @@
                     } catch (e) {
                         console.error(e);
                         // If login failed, check if it was an auto-login attempt after failed register fallback
-                        this.authError = "Login failed. Check email or password.";
+                        this.authError = this.t('toastLoginFail');
                     }
                 },
                 
@@ -1319,11 +1118,11 @@
                     pb.authStore.clear();
                     this.user = null;
                     this.myProjects = [];
-                    this.showToast('Signed out', 'info');
+                    this.showToast(this.t('toastSignedOut'), 'info');
                 },
 
                 async loadProject(id) {
-                    this.loadingStep = 'Loading project...';
+                    this.loadingStep = this.t('loading');
                     try {
                         const record = await pb.collection('projects').getOne(id);
                         this.currentCode = record.code_html || '';
@@ -1336,9 +1135,9 @@
                         this.parseAndApplyCode(this.currentCode);
                         this.viewMode = 'preview'; // Auto switch to preview
                         
-                        this.showToast(`Loaded "${record.title}"`, 'success');
+                        this.showToast(this.t('toastLoaded', { title: record.title }), 'success');
                     } catch (e) {
-                        this.showToast('Failed to load project', 'error');
+                        this.showToast(this.t('toastLoadFail'), 'error');
                         console.error(e);
                     } finally {
                         this.loadingStep = '';
@@ -1346,7 +1145,7 @@
                 },
 
                 async saveProject() {
-                    this.loadingStep = 'Saving...';
+                    this.loadingStep = this.t('loadingSaving');
                     try {
                         // Extract title from <title> tag or use default
                         const baseHtml = this.mainHtmlCode || this.currentCode;
@@ -1364,7 +1163,7 @@
                         if (this.activeProjectId) {
                             // Update: Don't send author_id
                             record = await pb.collection('projects').update(this.activeProjectId, baseData);
-                            this.showToast('Project updated', 'success');
+                            this.showToast(this.t('toastUpdated'), 'success');
                         } else {
                             // Create: Must include author_id
                             record = await pb.collection('projects').create({
@@ -1372,7 +1171,7 @@
                                 author_id: this.user.id
                             });
                             this.activeProjectId = record.id;
-                            this.showToast('Project created', 'success');
+                            this.showToast(this.t('toastCreated'), 'success');
                         }
                         
                         this.deployUrl = `${window.location.origin}/view.html?id=${record.id}`;
@@ -1390,7 +1189,7 @@
                         this.fetchProjects();
 
                     } catch (e) {
-                        this.showToast('Save Failed: ' + e.message, 'error');
+                        this.showToast(this.t('toastSaveFail', { msg: e.message }), 'error');
                     } finally {
                         this.loadingStep = '';
                     }
@@ -1425,7 +1224,7 @@
                     
                     try {
                         await pb.collection('projects').delete(id);
-                        this.showToast('Project deleted', 'success');
+                        this.showToast(this.t('toastDeleted'), 'success');
                         if (this.activeProjectId === id) {
                             this.currentCode = '';
                             this.activeProjectId = null;
@@ -1434,7 +1233,7 @@
                     } catch (e) {
                         console.error(e);
                         this.myProjects = originalList; // Revert on error
-                        this.showToast('Failed to delete', 'error');
+                        this.showToast(this.t('toastDeleteFail'), 'error');
                     }
                 },
 
@@ -1446,11 +1245,11 @@
                         await pb.collection('projects').update(this.activeProjectId, {
                             is_public: this.isProjectPublic
                         });
-                        this.showToast(this.isProjectPublic ? 'Published to Plaza' : 'Made Private', 'success');
+                        this.showToast(this.isProjectPublic ? this.t('toastPublished') : this.t('toastPrivate'), 'success');
                     } catch(e) {
                         this.isProjectPublic = !this.isProjectPublic; // revert
                         console.error(e);
-                        this.showToast('Failed to change visibility', 'error');
+                        this.showToast(this.t('toastVisibilityFail'), 'error');
                     }
                 },
 

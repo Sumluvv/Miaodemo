@@ -25,6 +25,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="i18n.js"></script>
+    <script>MiaoI18n.init();</script>
 
     <style>
         [x-cloak] { display: none !important; }
@@ -42,13 +44,35 @@
         <!-- Header -->
         <header class="bg-white/80 backdrop-blur border-b border-gray-200 sticky top-0 z-30">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-2">
+                <a href="index.html" class="flex items-center gap-2 hover:opacity-80 transition-opacity rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" :title="t('backWorkbench')">
                     <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold">M</div>
-                    <span class="font-bold text-gray-900 tracking-tight">MiaoDemo Plaza</span>
-                </div>
-                <div class="flex items-center gap-4">
+                    <span class="font-bold text-gray-900 tracking-tight" x-text="t('plazaTitle')"></span>
+                </a>
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="relative">
+                        <button type="button"
+                                @click="langMenuOpen = !langMenuOpen"
+                                class="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                :title="t('language')"
+                                :aria-label="t('language')">
+                            <i data-lucide="languages" class="w-4 h-4"></i>
+                        </button>
+                        <div x-cloak x-show="langMenuOpen" @click.away="langMenuOpen = false"
+                             class="absolute top-full right-0 mt-1.5 w-[9.5rem] max-h-64 overflow-y-auto bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                            <template x-for="opt in langOptions" :key="opt.code">
+                                <button type="button"
+                                        @click="setLanguage(opt.code); langMenuOpen = false"
+                                        class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between gap-2"
+                                        :class="lang === opt.code ? 'text-brand-600 font-semibold bg-brand-50/50' : 'text-gray-700'">
+                                    <span x-text="opt.label" class="truncate"></span>
+                                    <span x-show="lang === opt.code" class="text-brand-600 shrink-0">✓</span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
                     <a href="index.html" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-sm font-medium hover:bg-black transition-all">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Create New
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span x-text="t('createNew')"></span>
                     </a>
                 </div>
             </div>
@@ -70,7 +94,7 @@
                         </div>
                         
                         <div class="p-4">
-                            <h3 class="font-semibold text-gray-900 truncate" x-text="project.title || 'Untitled'"></h3>
+                            <h3 class="font-semibold text-gray-900 truncate" x-text="project.title || t('untitled')"></h3>
                             <div class="flex items-center justify-between mt-3">
                                 <div class="flex items-center gap-2">
                                     <div class="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center text-[10px] text-gray-500 font-bold" x-text="authorInitial(project)"></div>
@@ -78,7 +102,7 @@
                                 </div>
                                 <div class="flex items-center gap-3 text-xs text-gray-400">
                                     <span class="flex items-center gap-1 group-hover:text-pink-500 transition-colors"><i data-lucide="heart" class="w-3 h-3"></i> <span x-text="project.likes || 0"></span></span>
-                                    <span class="text-brand-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">View</span>
+                                    <span class="text-brand-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity" x-text="t('view')"></span>
                                 </div>
                             </div>
                         </div>
@@ -88,8 +112,8 @@
             
             <div x-show="!isLoading && projects.length === 0" class="text-center py-20">
                 <div class="text-gray-300 mb-4"><i data-lucide="ghost" class="w-12 h-12 mx-auto"></i></div>
-                <p class="text-gray-500">No public projects yet.</p>
-                <a href="index.html" class="text-brand-600 hover:underline mt-2 inline-block">Be the first to build one!</a>
+                <p class="text-gray-500" x-text="t('noPublic')"></p>
+                <a href="index.html" class="text-brand-600 hover:underline mt-2 inline-block" x-text="t('beFirst')"></a>
             </div>
         </main>
         
@@ -112,20 +136,20 @@
                 <div class="h-4 w-px bg-gray-200 mx-1"></div>
                 
                 <div class="px-2 max-w-[120px] md:max-w-[200px]">
-                    <p class="text-xs font-semibold text-gray-800 truncate" x-text="activeProject?.title || 'Loading...'"></p>
-                    <p class="text-[10px] text-gray-400 truncate" x-text="'by ' + authorLabel(activeProject)"></p>
+                    <p class="text-xs font-semibold text-gray-800 truncate" x-text="activeProject?.title || t('loading')"></p>
+                    <p class="text-[10px] text-gray-400 truncate" x-text="t('byAuthor', { name: authorLabel(activeProject) })"></p>
                 </div>
 
                 <div class="h-4 w-px bg-gray-200 mx-1"></div>
 
-                <button @click="likeProject()" class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-pink-50 transition-colors" :title="pb.authStore.isValid ? 'Like' : 'Login to like'">
+                <button @click="likeProject()" class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-pink-50 transition-colors" :title="pb.authStore.isValid ? t('like') : t('loginToLike')">
                     <i data-lucide="heart" class="w-3.5 h-3.5 text-gray-400 group-hover:text-pink-500 transition-colors" :class="liked ? 'fill-pink-500 text-pink-500' : ''"></i>
                     <span class="text-xs font-medium text-gray-600" x-text="activeProject?.likes || 0"></span>
                 </button>
 
                 <a :href="remixHref" class="flex items-center gap-1.5 px-4 py-1.5 bg-brand-600 text-white rounded-full hover:bg-brand-700 transition-colors text-xs font-medium shadow-sm ml-1">
                     <i data-lucide="git-fork" class="w-3 h-3"></i>
-                    Remix
+                    <span x-text="t('remix')"></span>
                 </a>
             </div>
         </div>
@@ -139,7 +163,7 @@
         <div class="hidden md:block absolute bottom-6 right-6 group">
             <div class="bg-white/90 backdrop-blur p-3 rounded-2xl shadow-lg border border-gray-200 transition-all hover:scale-105">
                 <div id="qrcode-desktop" class="opacity-80 group-hover:opacity-100 transition-opacity"></div>
-                <p class="text-[9px] text-center mt-2 text-gray-400 uppercase tracking-widest">Scan</p>
+                <p class="text-[9px] text-center mt-2 text-gray-400 uppercase tracking-widest" x-text="t('scan')"></p>
             </div>
         </div>
     </div>
@@ -159,11 +183,11 @@
         }
 
         function displayAuthor(user) {
-            if (!user) return 'Unknown';
+            if (!user) return MiaoI18n.t('unknown');
             const name = (user.name || user.username || '').trim();
             if (name) return name;
             if (user.email) return user.email.split('@')[0];
-            return 'Creator';
+            return MiaoI18n.t('creator');
         }
 
         document.addEventListener('alpine:init', () => {
@@ -175,6 +199,21 @@
                 liked: false,
                 toast: '',
                 toastKind: 'error',
+                lang: MiaoI18n.getLang(),
+                langMenuOpen: false,
+                get langOptions() { return MiaoI18n.getOptions(); },
+
+                t(key, params) {
+                    void this.lang;
+                    return MiaoI18n.t(key, params);
+                },
+
+                setLanguage(code) {
+                    MiaoI18n.setLang(code);
+                    this.lang = code;
+                    document.title = MiaoI18n.t('pageTitleView');
+                    this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+                },
 
                 get remixHref() {
                     return this.currentId ? `index.html?remix_id=${this.currentId}` : 'index.html';
@@ -197,6 +236,8 @@
                 },
 
                 async init() {
+                    this.lang = MiaoI18n.getLang();
+                    document.title = MiaoI18n.t('pageTitleView');
                     lucide.createIcons();
                     const params = new URLSearchParams(window.location.search);
                     this.currentId = params.get('id');
@@ -233,7 +274,7 @@
                         this.projects = items;
                     } catch (e) {
                         console.error(e);
-                        this.showToast('加载社区作品失败，请稍后重试');
+                        this.showToast(this.t('toastLoadPlazaFail'));
                     } finally {
                         this.isLoading = false;
                         this.$nextTick(() => lucide.createIcons());
@@ -259,8 +300,8 @@
                     } catch (e) {
                         console.error(e);
                         const msg = e?.status === 404 || e?.status === 403
-                            ? '作品不存在或为私密，仅作者可查看'
-                            : '加载失败，请稍后重试';
+                            ? this.t('toastPrivateProject')
+                            : this.t('toastLoadError');
                         this.showToast(msg);
                         setTimeout(() => { window.location.href = 'view.html'; }, 2200);
                     }
@@ -275,7 +316,7 @@
                     if (this.liked || !this.activeProject) return;
 
                     if (!pb.authStore.isValid) {
-                        this.showToast('请先登录后再点赞（工作台 → Login）');
+                        this.showToast(this.t('toastLoginToLike'));
                         return;
                     }
 
@@ -288,7 +329,7 @@
                         });
                         if (existing.totalItems > 0) {
                             this.liked = true;
-                            this.showToast('你已经点过赞了', 'success');
+                            this.showToast(this.t('toastAlreadyLiked'), 'success');
                             return;
                         }
 
@@ -305,10 +346,10 @@
                             likedPosts.push(projectId);
                             localStorage.setItem('liked_projects', JSON.stringify(likedPosts));
                         }
-                        this.showToast('感谢点赞！', 'success');
+                        this.showToast(this.t('toastThanksLike'), 'success');
                     } catch (e) {
                         console.error(e);
-                        this.showToast(e?.message || '点赞失败，请稍后重试');
+                        this.showToast(e?.message || this.t('toastLikeFail'));
                     }
                 }
             }))
