@@ -44,13 +44,23 @@
         .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.5); }
         [x-cloak] { display: none !important; }
 
+        .sidebar-section-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #374151;
+            letter-spacing: 0.02em;
+        }
+        .sidebar-item {
+            font-size: 0.75rem;
+            line-height: 1.25rem;
+        }
         .lang-switch-btn {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            min-width: 7.25rem;
-            padding: 0.375rem 0.5rem 0.375rem 0.375rem;
-            border-radius: 0.75rem;
+            gap: 0.3rem;
+            min-width: 5.5rem;
+            padding: 0.2rem 0.35rem 0.2rem 0.2rem;
+            border-radius: 0.625rem;
             border: 1px solid #e5e7eb;
             background: linear-gradient(180deg, #fff 0%, #f9fafb 100%);
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
@@ -70,9 +80,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 1.75rem;
-            height: 1.75rem;
-            border-radius: 0.5rem;
+            width: 1.375rem;
+            height: 1.375rem;
+            border-radius: 0.375rem;
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: #fff;
             flex-shrink: 0;
@@ -140,10 +150,10 @@
         
         <!-- Projects List & Nav -->
         <div class="flex-1 overflow-y-auto p-3 space-y-1">
-            <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider" x-text="t('myProjects')"></div>
+            <div class="sidebar-section-title px-3 py-2" x-text="t('myProjects')"></div>
             
             <template x-for="proj in myProjects" :key="proj.id">
-                <div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer text-sm text-gray-600 transition-colors"
+                <div class="group sidebar-item flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-gray-100 cursor-pointer text-gray-600 transition-colors"
                      @click="loadProject(proj.id)" :class="activeProjectId === proj.id ? 'bg-blue-50 text-brand-600' : ''">
                     <span class="truncate max-w-[140px]" x-text="proj.title || t('untitled')"></span>
                     <!-- Delete Button: Blue circle with white X, visible on hover -->
@@ -159,9 +169,9 @@
 
             <!-- Community Link (Moved Here) -->
             <div class="pt-4 mt-2 border-t border-gray-100">
-                <div class="text-xs font-semibold text-gray-400 px-3 py-2 uppercase tracking-wider" x-text="t('explore')"></div>
-                <a href="view.html" target="_blank" class="flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                    <i data-lucide="globe" class="w-4 h-4 text-brand-500"></i>
+                <div class="sidebar-section-title px-3 py-2" x-text="t('explore')"></div>
+                <a href="view.html" target="_blank" class="sidebar-item flex items-center gap-2.5 px-3 py-1.5 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                    <i data-lucide="globe" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i>
                     <span x-text="t('communityPlaza')"></span>
                 </a>
             </div>
@@ -191,16 +201,16 @@
                             :title="t('language') + ' · ' + currentLangLabel"
                             :aria-label="t('language') + ', ' + currentLangLabel">
                         <span class="lang-switch-globe" aria-hidden="true">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"/>
                                 <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                             </svg>
                         </span>
-                        <span class="flex flex-col items-start min-w-0 flex-1 text-left leading-tight">
-                            <span class="text-[9px] font-semibold uppercase tracking-wide text-gray-400" x-text="t('language')"></span>
-                            <span class="text-xs font-semibold text-gray-800 truncate max-w-[4.25rem]" x-text="currentLangLabel"></span>
+                        <span class="flex flex-col items-start min-w-0 flex-1 text-left leading-none">
+                            <span class="text-[7px] font-semibold uppercase tracking-wide text-gray-400" x-text="t('language')"></span>
+                            <span class="text-[10px] font-semibold text-gray-800 truncate max-w-[3.25rem]" x-text="currentLangLabel"></span>
                         </span>
-                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200" :class="langMenuOpen && 'rotate-180'" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        <svg class="w-3 h-3 text-gray-400 shrink-0 transition-transform duration-200" :class="langMenuOpen && 'rotate-180'" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
                     <div x-cloak x-show="langMenuOpen" @click.away="langMenuOpen = false"
                          x-transition:enter="transition ease-out duration-150"
@@ -268,17 +278,13 @@
             </div>
 
             <!-- Deployment Controls -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
                 <button type="button"
                         @click="openHelpGuide()"
-                        class="w-9 h-9 rounded-full border border-gray-200 bg-white text-gray-500 hover:text-brand-600 hover:border-brand-300 hover:bg-brand-50/50 shadow-sm flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                        class="mr-2 w-8 h-8 rounded-full bg-brand-600 text-white text-sm font-bold shadow-md shadow-brand-200/60 hover:bg-brand-700 hover:shadow-lg flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                         :title="t('helpBtnTitle')"
                         :aria-label="t('helpBtnTitle')">
-                    <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                        <circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="none"/>
-                    </svg>
+                    <span aria-hidden="true">?</span>
                 </button>
                 <button @click="handleDeploy()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg shadow-sm shadow-brand-200 text-xs font-semibold flex items-center gap-2 transition-all active:scale-95">
                     <i data-lucide="rocket" class="w-3.5 h-3.5"></i>
