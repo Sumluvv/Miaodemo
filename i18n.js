@@ -7,14 +7,14 @@
     const FALLBACK = 'en';
 
     const LOCALE_META = [
-        { code: 'zh', label: '简体中文', htmlLang: 'zh-CN' },
-        { code: 'zh-TW', label: '繁體中文', htmlLang: 'zh-TW' },
-        { code: 'en', label: 'English', htmlLang: 'en' },
-        { code: 'ja', label: '日本語', htmlLang: 'ja' },
-        { code: 'ko', label: '한국어', htmlLang: 'ko' },
-        { code: 'es', label: 'Español', htmlLang: 'es' },
-        { code: 'fr', label: 'Français', htmlLang: 'fr' },
-        { code: 'de', label: 'Deutsch', htmlLang: 'de' },
+        { code: 'zh', label: '简体中文', abbr: '简', htmlLang: 'zh-CN' },
+        { code: 'zh-TW', label: '繁體中文', abbr: '繁', htmlLang: 'zh-TW' },
+        { code: 'en', label: 'English', abbr: 'EN', htmlLang: 'en' },
+        { code: 'ja', label: '日本語', abbr: 'JA', htmlLang: 'ja' },
+        { code: 'ko', label: '한국어', abbr: 'KO', htmlLang: 'ko' },
+        { code: 'es', label: 'Español', abbr: 'ES', htmlLang: 'es' },
+        { code: 'fr', label: 'Français', abbr: 'FR', htmlLang: 'fr' },
+        { code: 'de', label: 'Deutsch', abbr: 'DE', htmlLang: 'de' },
     ];
 
     const en = {
@@ -894,11 +894,15 @@
         },
         detectBrowserLang,
         getOptions() {
-            return LOCALE_META.map((m) => ({ code: m.code, label: m.label }));
+            return LOCALE_META.map((m) => ({ code: m.code, label: m.label, abbr: m.abbr }));
         },
         getLabel(code) {
             const m = LOCALE_META.find((x) => x.code === code);
             return m ? m.label : code;
+        },
+        getAbbr(code) {
+            const m = LOCALE_META.find((x) => x.code === code);
+            return m ? m.abbr : code;
         },
         applyDocumentLang(code) {
             const m = LOCALE_META.find((x) => x.code === code) || LOCALE_META.find((x) => x.code === FALLBACK);
