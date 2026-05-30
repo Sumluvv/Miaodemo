@@ -32,10 +32,11 @@ async function main() {
                     { name: 'code_html', type: 'text' }, // 存储完整的 HTML 代码
                     { name: 'author_id', type: 'relation', collectionId: 'users', cascadeDelete: false },
                     { name: 'is_public', type: 'bool' },
+                    { name: 'likes', type: 'number', required: false },
                     { name: 'thumbnail', type: 'file', options: { mimeTypes: ['image/png', 'image/jpeg'] } }
                 ],
-                listRule: "", // 公开可读（根据 is_public 过滤在前端做，或者更严格 '@request.auth.id != ""'）
-                viewRule: "",
+                listRule: 'is_public = true || (@request.auth.id != "" && author_id = @request.auth.id)',
+                viewRule: 'is_public = true || (@request.auth.id != "" && author_id = @request.auth.id)',
                 createRule: "@request.auth.id != ''",
                 updateRule: "@request.auth.id = author_id",
                 deleteRule: "@request.auth.id = author_id",

@@ -570,7 +570,7 @@
                 chatHistory: [],
                 history: [], // [{ timestamp: number, code: string }]
                 assets: [], 
-                isPWA: true,
+                isPWA: false,
                 myProjects: [],
                 
                 // UI States
@@ -629,9 +629,13 @@
                             this.currentCode = record.code_html || ''; 
                             this.pushHistory();
                             this.viewMode = 'preview';
-                            this.loadingStep = '';
                             this.showToast(`Remixing "${record.title}"`, 'success');
-                        } catch(e) { this.loadingStep = ''; }
+                        } catch (e) {
+                            console.error(e);
+                            this.showToast('无法加载该项目（可能为私密作品或不存在）', 'error');
+                        } finally {
+                            this.loadingStep = '';
+                        }
                     }
 
                     // Listen for Iframe Messages (Text Selection)
@@ -1353,7 +1357,7 @@
                             title: title,
                             code_html: baseHtml,
                             chat_history: this.chatHistory,
-                            is_public: false
+                            is_public: this.isProjectPublic
                         };
 
                         let record;
